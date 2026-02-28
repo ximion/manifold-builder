@@ -11,7 +11,7 @@ PointerAlignment: Right
 AllowAllParametersOfDeclarationOnNextLine: false
 AlwaysBreakBeforeMultilineStrings: true
 BreakBeforeBinaryOperators: NonAssignment
-AlignArrayOfStructures: Left
+AlignArrayOfStructures: None
 
 AlignAfterOpenBracket: true
 BreakAfterOpenBracketBracedList: true
