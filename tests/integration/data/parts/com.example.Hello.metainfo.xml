@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="console-application">
+  <id>com.example.Hello</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Hello</name>
+  <summary>Says hello, built with every build system there is</summary>
+  <developer id="org.example">
+    <name>Example Developers</name>
+  </developer>
+  <description>
+    <p>A test program for manifold-builder.</p>
+  </description>
+  <provides>
+    <binary>hello-meson</binary>
+  </provides>
+  <releases>
+    <release version="1.0.0" date="2026-10-21"/>
+  </releases>
+</component>

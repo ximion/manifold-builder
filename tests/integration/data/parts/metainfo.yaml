@@ -1,0 +1,8 @@
+# Included from the recipe. Local paths are relative to this file.
+name: metainfo
+buildsystem: simple
+sources:
+  - type: file
+    path: com.example.Hello.metainfo.xml
+build-commands:
+  - install -D -m 0644 com.example.Hello.metainfo.xml $MANIFOLD_DEST/share/metainfo/com.example.Hello.metainfo.xml

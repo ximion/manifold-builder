@@ -1,0 +1,104 @@
+/*
+ * Copyright (C) 2025-2026 Matthias Klumpp <matthias@tenstral.net>
+ *
+ * SPDX-License-Identifier: LGPL-2.1-or-later
+ */
+
+#pragma once
+
+#include "utils.hpp"
+
+#include <map>
+#include <string>
+#include <vector>
+
+struct _AsMetadata;
+
+namespace mfb
+{
+
+/**
+ * Content of a generated MetaInfo file. Runtime images are components of
+ * type "runtime", and their SDKs are "addon" components extending them.
+ */
+struct MetaInfo {
+    std::string id;
+    std::string kind;    /// "runtime" or "addon"
+    std::string extends; /// The component-ID of a component an addon extends
+    std::string name;
+    std::string summary;
+    std::string description; /// Plain text, with blank lines between paragraphs
+    std::string project_license;
+    std::string metadata_license;
+    std::string homepage;
+    std::string version;
+    std::string release_date; /// ISO 8601 date of the latest release
+};
+
+/**
+ * Generate MetaInfo XML for an image.
+ */
+std::string generate_metainfo(const MetaInfo &info);
+
+/**
+ * Validate MetaInfo XML.
+ * Returns one line per problem, nothing if the data is valid.
+ */
+std::vector<std::string> validate_metainfo(const std::string &xml);
+
+/**
+ * Read the data of a component from MetaInfo XML.
+ * We leave out a bunch of stuff and parse only what the build process needs.
+ */
+MetaInfo parse_metainfo(const std::string &xml);
+
+/**
+ * Get the "manifold.id" <custom> value that names the component to install,
+ * as "<architecture>/<component>/<version>".
+ * FIXME: This is a placeholder until AppStream has a <bundle/> kind for Manifold.
+ */
+std::map<std::string, std::string> manifold_custom(
+    const std::string &architecture,
+    const std::string &component,
+    const std::string &version);
+
+/**
+ * AppStream catalog of the images of a bundle.
+ */
+class AppStreamCatalog
+{
+public:
+    explicit AppStreamCatalog(fs::path dir);
+    ~AppStreamCatalog();
+    AppStreamCatalog(const AppStreamCatalog &) = delete;
+    AppStreamCatalog &operator=(const AppStreamCatalog &) = delete;
+
+    /**
+     * Run appstream-compose on an image tree with the given prefix,
+     * add the component `component_id` with its icons and screenshots,
+     * and with the `custom` values. All other components of the tree
+     * that don't match the component ID are ignored.
+     * Fails the build if the tree has no such component.
+     */
+    void add_tree(
+        const fs::path &tree,
+        const std::string &prefix,
+        const std::string &component_id,
+        const std::map<std::string, std::string> &custom);
+
+    /**
+     * Write the catalog XML and return its path.
+     */
+    fs::path write() const;
+
+    const fs::path &dir() const
+    {
+        return m_dir;
+    }
+
+private:
+    fs::path m_dir;
+    _AsMetadata *m_metadata;
+};
+
+} // namespace mfb

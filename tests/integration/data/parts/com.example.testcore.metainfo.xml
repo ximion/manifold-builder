@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="runtime">
+  <id>com.example.testcore</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-Debian-DFSG</project_license>
+  <name>Test Core</name>
+  <summary>A small core for the builder's tests</summary>
+  <url type="homepage">https://example.org/testcore</url>
+  <developer id="org.example">
+    <name>Example Developers</name>
+  </developer>
+</component>

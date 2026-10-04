@@ -1,0 +1,1 @@
+option('name', type : 'string', value : 'hello-meson', description : 'Name of the installed program')

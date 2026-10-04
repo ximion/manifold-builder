@@ -1,0 +1,119 @@
+type: core
+
+component: net.debian.core13
+version: "13.7"
+
+name: Debian 13 Core (TEST)
+summary: Manifold core runtime based on Debian 13 (trixie)
+description: |
+  The base layer every Manifold runtime and application on Debian 13 is
+  built on. It provides the C library, the dynamic linker and the GL and
+  Vulkan entry points, and nothing else.
+project-license: LicenseRef-Debian-DFSG
+metadata-license: CC0-1.0
+homepage: https://www.debian.org/
+
+bootstrap:
+  distribution: debian
+  suite: trixie
+  architecture: amd64
+  snapshot: "2026-10-18T00:00:00Z"
+  # Drop documentation, manual pages and message catalogs, except those
+  # of the locales below.
+  slim: true
+
+# Locales to generate. Apart from these, the image only has C.UTF-8.
+locales: [en_US, en_GB, de_DE, fr_FR, es_ES, it_IT, pt_BR, pt_PT, nl_NL, pl_PL,
+          ru_RU, uk_UA, cs_CZ, sv_SE, da_DK, fi_FI, nb_NO, tr_TR, ja_JP, zh_CN,
+          zh_TW, ko_KR, ar_EG, he_IL, hi_IN, el_GR, hu_HU, ro_RO, id_ID, vi_VN]
+
+# Packages to install on top of the minimal base.
+packages:
+  apt:
+    # GLVND entry points and the Mesa implementations behind them. At run time
+    # we use the captured host drivers instead, but we ship these so the capture
+    # has something to compare against and the image works on its own.
+    - libgl1
+    - libglx0
+    - libglx-mesa0
+    - libgl1-mesa-dri
+    - libegl1
+    - libegl-mesa0
+    - libgles2
+    - libgbm1
+    - libvulkan1
+    - mesa-vulkan-drivers
+    - libva2
+    - libva-drm2
+    - libva-x11-2
+    - mesa-va-drivers
+    - libvdpau1
+    - mesa-vdpau-drivers
+    - libgl-dev
+    - libegl-dev
+    - libgles-dev
+    - libvulkan-dev
+    - fontconfig
+    - shared-mime-info
+    - libfontconfig-dev
+    - libglib2.0-dev
+    - libgio-2.0-dev
+    - libicu-dev
+
+# Only needed for building. These go into the SDK image only, with all their dependencies.
+packages-sdk:
+  apt:
+    - build-essential
+    - meson
+    - cmake
+    - ninja-build
+    - pkgconf
+    - git
+    - desktop-file-utils
+    - appstream
+
+image:
+  compression: zstd
+  compression-level: 12
+
+# Scripts to run inside the image. Stage runtime (the default) runs them after
+# the runtime packages, stage sdk after the SDK packages.
+actions:
+  - name: mark-manifold-core
+    run: |
+      mkdir -p /usr/lib/manifold
+      echo "net.debian.core13" > /usr/lib/manifold/core
+  # The xdg-open and xdg-email of xdg-utils would try to run the host's
+  # browser and mail client inside the sandbox. We stop dpkg from unpacking
+  # them, here and in every runtime built on this core, and the parts below
+  # provide the portal-based ones instead.
+  - name: no-packaged-xdg-utils
+    run: |
+      printf 'path-exclude /usr/bin/xdg-open\npath-exclude /usr/bin/xdg-email\n' \
+        > /etc/dpkg/dpkg.cfg.d/manifold-xdg-utils
+      rm -f /usr/bin/xdg-open /usr/bin/xdg-email
+
+# Parts are built from source in the SDK environment and installed into the runtime.
+parts:
+  - name: flatpak-xdg-utils
+    buildsystem: meson
+    config-opts: [--bindir=libexec/flatpak-xdg-utils]
+    sources:
+      - type: git
+        url: https://github.com/flatpak/flatpak-xdg-utils.git
+        tag: 1.0.6
+    post-install:
+      - ln -s ../libexec/flatpak-xdg-utils/xdg-open /usr/bin/xdg-open
+      - ln -s ../libexec/flatpak-xdg-utils/xdg-email /usr/bin/xdg-email
+      # talks to Flatpak's session helper, which does not exist here
+      - rm /usr/libexec/flatpak-xdg-utils/flatpak-spawn
+
+# Paths relative to /usr that only the SDK image keeps. They are moved out of
+# the runtime image. Shell globs are allowed, and ** matches across directories.
+sdk-only:
+  - include
+  - lib/*/pkgconfig
+  - lib/pkgconfig
+  - lib/**/*.a
+  - lib/**/*.la
+  - share/pkgconfig

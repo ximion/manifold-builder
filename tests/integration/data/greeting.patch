@@ -1,0 +1,11 @@
+--- a/hello.c
++++ b/hello.c
+@@ -9,7 +9,7 @@
+ 
+ #include <stdio.h>
+ 
+-#define GREETING "greeting: unpatched"
++#define GREETING "greeting: patched"
+ 
+ int main(void)
+ {
