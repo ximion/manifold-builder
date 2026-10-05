@@ -70,11 +70,6 @@ constexpr std::string_view BUILD_TOOLS[] = {
 };
 
 /**
- * The .gitignore of every work directory, which also marks it as ours.
- */
-constexpr std::string_view WORK_DIR_GITIGNORE_DATA = "# manifold-builder work directory\n*\n";
-
-/**
  * Check if a cleanup pattern matches a path relative to the prefix.
  */
 bool cleanup_matches(const std::string &pattern, const std::string &path)
@@ -199,7 +194,7 @@ void Build::prepare_work_dir()
     auto gitignore = m_work / ".gitignore";
     if (!fs::is_empty(m_work)) {
         // only our .gitignore tells us that the contents are ours to delete
-        if (!fs::is_regular_file(gitignore) || read_file(gitignore) != WORK_DIR_GITIGNORE_DATA)
+        if (!is_work_dir(m_work))
             fail("The work directory {} is not empty, and not one of ours", m_work.string());
         LOG_INFO(logBuild, "Clearing the work directory of an earlier build: {}", m_work.string());
         std::vector<fs::path> entries;
@@ -266,7 +261,7 @@ void Build::fetch_sources()
     if (m_parts.empty())
         return;
     log::section_box("Retrieving Sources");
-    m_sources = mfb::fetch_sources(m_parts, m_work / "sources", m_work / "downloads");
+    m_sources = mfb::fetch_sources(m_parts, m_work / "sources", m_work / "downloads", {m_work, m_output});
 }
 
 std::vector<std::pair<std::string, std::string>> Build::part_environment(const Part &part, const InstallTarget &target)

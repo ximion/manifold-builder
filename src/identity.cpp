@@ -88,7 +88,7 @@ std::string checksum_file_hex(const fs::path &path, ChecksumKind kind)
     std::unreachable();
 }
 
-std::string tree_hash(const fs::path &dir)
+std::string tree_hash(const fs::path &dir, const std::function<bool(const fs::path &)> &skip)
 {
     // We hash a directory tree over a line naming the format, followed by one
     // line per entry, sorted by path relative to the tree:
@@ -100,23 +100,23 @@ std::string tree_hash(const fs::path &dir)
     //
     // Ownership and timestamps are left out, so every copy of a tree hashes the same.
 
-    std::vector<std::pair<std::string, fs::directory_entry>> entries;
-    for (const auto &entry : fs::recursive_directory_iterator(dir))
-        entries.emplace_back(entry.path().lexically_relative(dir).generic_string(), entry);
-    std::ranges::sort(entries, {}, [](const auto &entry) -> const std::string & {
-        return entry.first;
-    });
+    std::vector<std::string> paths;
+    for (const auto &path : list_tree(dir, skip))
+        paths.push_back(path.generic_string());
+    std::ranges::sort(paths);
 
     std::string text = "manifold-tree/1\n";
-    for (const auto &[path, entry] : entries) {
-        if (entry.is_symlink()) {
-            text += std::format("l {} {}\n", path, fs::read_symlink(entry.path()).string());
-        } else if (entry.is_directory()) {
+    for (const auto &path : paths) {
+        auto entry = dir / path;
+        auto status = fs::symlink_status(entry);
+        if (fs::is_symlink(status)) {
+            text += std::format("l {} {}\n", path, fs::read_symlink(entry).string());
+        } else if (fs::is_directory(status)) {
             text += std::format("d {}\n", path);
-        } else if (entry.is_regular_file()) {
-            bool executable = (entry.status().permissions() & fs::perms::owner_exec) != fs::perms::none;
+        } else if (fs::is_regular_file(status)) {
+            bool executable = (status.permissions() & fs::perms::owner_exec) != fs::perms::none;
             text += std::format(
-                "f {} {} {}\n", path, executable ? "x" : "-", checksum_file_hex(entry.path(), ChecksumKind::Blake3));
+                "f {} {} {}\n", path, executable ? "x" : "-", checksum_file_hex(entry, ChecksumKind::Blake3));
         }
     }
     return checksum_data_hex(text, ChecksumKind::Blake3);

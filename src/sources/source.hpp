@@ -33,6 +33,8 @@ struct FetchContext {
     fs::path dir;
     /// scratch space for downloads and temporary checkouts
     fs::path scratch;
+    /// our own paths, which a dir source leaves out: the work dir and the output
+    std::vector<fs::path> skip;
 };
 
 /**
@@ -91,11 +93,14 @@ void check_source_tools(const std::vector<const Part *> &parts);
 /**
  * Fetch the sources of all parts into one directory per part below
  * `sources_dir`, and return their records for the manifest.
+ *
+ * `skip` lists our own paths, which no source may contain.
  */
 std::vector<SourceRecord> fetch_sources(
     const std::vector<const Part *> &parts,
     const fs::path &sources_dir,
-    const fs::path &scratch);
+    const fs::path &scratch,
+    const std::vector<fs::path> &skip = {});
 
 /**
  * Download or locate the file of an archive, file or patch source, and return its path.
@@ -103,6 +108,12 @@ std::vector<SourceRecord> fetch_sources(
  * Fails the build if the file does not match the checksum given in the source.
  */
 fs::path obtain_file(const Source &source, const FetchContext &context);
+
+/**
+ * Get the file name a source's path or URL ends in, without the query or
+ * fragment of a URL.
+ */
+std::string source_file_name(const Source &source);
 
 /**
  * Create the build record of a source that is a single file.

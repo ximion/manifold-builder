@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <ranges>
 #include <set>
 #include <string>
@@ -70,6 +71,23 @@ std::string read_file(const fs::path &path);
  * be written.
  */
 void write_file(const fs::path &path, std::string_view content);
+
+/**
+ * List everything below `dir`, relative to it, in no particular order.
+ *
+ * An entry `skip` returns true for is left out, with all it contains.
+ */
+std::vector<fs::path> list_tree(const fs::path &dir, const std::function<bool(const fs::path &)> &skip = {});
+
+/**
+ * The .gitignore of every work directory, which also marks it as ours.
+ */
+constexpr std::string_view WORK_DIR_GITIGNORE_DATA = "# manifold-builder work directory\n*\n";
+
+/**
+ * Check if a directory is a work directory of ours, by its .gitignore.
+ */
+bool is_work_dir(const fs::path &dir);
 
 /**
  * Remove the files below `dir` that `reference` has unchanged at the same path.

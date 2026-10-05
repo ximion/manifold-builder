@@ -17,7 +17,7 @@ namespace
 
 bool is_zip(const Source &source)
 {
-    return (source.url.empty() ? source.path : source.url).ends_with(".zip");
+    return source_file_name(source).ends_with(".zip");
 }
 
 /**

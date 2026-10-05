@@ -110,6 +110,28 @@ void write_file(const fs::path &path, std::string_view content)
     file << content;
 }
 
+std::vector<fs::path> list_tree(const fs::path &dir, const std::function<bool(const fs::path &)> &skip)
+{
+    std::vector<fs::path> entries;
+    for (auto it = fs::recursive_directory_iterator(dir); it != fs::recursive_directory_iterator(); ++it) {
+        if (skip && skip(it->path())) {
+            it.disable_recursion_pending();
+            continue;
+        }
+        entries.push_back(it->path().lexically_relative(dir));
+    }
+    return entries;
+}
+
+bool is_work_dir(const fs::path &dir)
+{
+    auto gitignore = dir / ".gitignore";
+    std::error_code error;
+    if (!fs::is_regular_file(gitignore, error) || fs::file_size(gitignore, error) != WORK_DIR_GITIGNORE_DATA.size())
+        return false;
+    return read_file(gitignore) == WORK_DIR_GITIGNORE_DATA;
+}
+
 size_t remove_identical_files(
     const fs::path &dir,
     const fs::path &reference,

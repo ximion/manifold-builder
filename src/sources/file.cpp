@@ -29,13 +29,7 @@ std::vector<std::string> FileSource::tools(const Source &source) const
 SourceRecord FileSource::fetch(const Source &source, const fs::path &destination, const FetchContext &context) const
 {
     auto file = obtain_file(source, context);
-    auto name = source.dest_filename;
-    if (name.empty()) {
-        // use the last path component, without query or fragment
-        std::string_view from = source.url.empty() ? source.path : source.url;
-        from = from.substr(0, from.find_first_of("?#"));
-        name = fs::path(from).filename().string();
-    }
+    auto name = source.dest_filename.empty() ? source_file_name(source) : source.dest_filename;
     fs::create_directories(destination);
     fs::copy_file(file, destination / name, fs::copy_options::overwrite_existing);
     return file_record(source, file);

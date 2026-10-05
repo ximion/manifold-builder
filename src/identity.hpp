@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -38,8 +39,10 @@ std::string checksum_file_hex(const fs::path &path, ChecksumKind kind);
  * Compute the blake3 hash of a directory tree as lowercase hex.
  * Every copy of the tree hashes the same, regardless of timestamps or the
  * order in which the filesystem lists its entries.
+ *
+ * An entry `skip` returns true for is left out, with all it contains.
  */
-std::string tree_hash(const fs::path &dir);
+std::string tree_hash(const fs::path &dir, const std::function<bool(const fs::path &)> &skip = {});
 
 /**
  * Compute the identity hash of an image.

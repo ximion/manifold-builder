@@ -80,7 +80,8 @@ void check_source_tools(const std::vector<const Part *> &parts)
 std::vector<SourceRecord> fetch_sources(
     const std::vector<const Part *> &parts,
     const fs::path &sources_dir,
-    const fs::path &scratch)
+    const fs::path &scratch,
+    const std::vector<fs::path> &skip)
 {
     std::vector<SourceRecord> records;
     for (const auto *part : parts) {
@@ -90,7 +91,7 @@ std::vector<SourceRecord> fetch_sources(
         for (const auto &source : part->sources) {
             auto destination = part_dir / source.dest;
             auto record = source_fetcher_for(source.type)
-                              ->fetch(source, destination, {.dir = part->dir, .scratch = scratch});
+                              ->fetch(source, destination, {.dir = part->dir, .scratch = scratch, .skip = skip});
             record.part = part->name;
             records.push_back(record);
         }
@@ -136,6 +137,14 @@ fs::path obtain_file(const Source &source, const FetchContext &context)
             fail("{} has sha256 {}, not {}", source.url.empty() ? file.string() : source.url, sha256, source.sha256);
     }
     return file;
+}
+
+std::string source_file_name(const Source &source)
+{
+    if (source.url.empty())
+        return fs::path(source.path).filename().string();
+    std::string_view url = source.url;
+    return fs::path(url.substr(0, url.find_first_of("?#"))).filename().string();
 }
 
 SourceRecord file_record(const Source &source, const fs::path &file)
