@@ -58,6 +58,11 @@ void write_bundle(
     const std::optional<fs::path> &sign_key = std::nullopt);
 
 /**
+ * Check that we can sign with `key`, before there is anything to sign.
+ */
+void check_sign_key(const fs::path &key);
+
+/**
  * Read the bundle like Manifold does when installing it, and verify every
  * image against its manifest.
  *

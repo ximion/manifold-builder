@@ -152,8 +152,6 @@ std::string sign_index(const std::string &index_json, const fs::path &key, const
     auto ssh_keygen = require_tool("ssh-keygen");
     auto index_file = bundle_path.string() + "." + std::string(INDEX_NAME);
     auto signature_file = index_file + ".sig";
-    write_file(index_file, index_json);
-    LOG_INFO(logBundle, "Signing with {}...", key.string());
     // not quiet, so a passphrase prompt reaches the terminal
     std::vector<std::string> sign = {
         ssh_keygen.string(),
@@ -165,11 +163,23 @@ std::string sign_index(const std::string &index_json, const fs::path &key, const
         std::string(SIGN_NAMESPACE),
         index_file,
     };
-    run({.argv = sign});
-    auto signature = read_file(signature_file);
-    fs::remove(index_file);
-    fs::remove(signature_file);
-    return signature;
+    auto remove_files = [&] {
+        std::error_code error;
+        fs::remove(index_file, error);
+        fs::remove(signature_file, error);
+    };
+
+    LOG_INFO(logBundle, "Signing with {}...", key.string());
+    try {
+        write_file(index_file, index_json);
+        run({.argv = sign});
+        auto signature = read_file(signature_file);
+        remove_files();
+        return signature;
+    } catch (...) {
+        remove_files();
+        throw;
+    }
 }
 
 } // namespace
@@ -203,10 +213,28 @@ void write_bundle(
     archive.add_buffer(INDEX_NAME, index_json);
     std::string signature;
     if (sign_key) {
-        signature = sign_index(index_json, *sign_key, bundle_path);
+        try {
+            signature = sign_index(index_json, *sign_key, bundle_path);
+        } catch (const BuildError &error) {
+            // the build is not lost, the bundle can be signed on its own
+            archive.close();
+            fail(
+                "{}\n{} was written unsigned, sign it with: manifold-builder sign {} {}",
+                error.what(),
+                bundle_path.string(),
+                shell_quote(sign_key->string()),
+                shell_quote(bundle_path.string()));
+        }
         archive.add_buffer(SIGNATURE_NAME, signature);
     }
     archive.close();
+}
+
+void check_sign_key(const fs::path &key)
+{
+    require_tool("ssh-keygen");
+    if (!fs::is_regular_file(key))
+        fail("Signing key {} does not exist", key.string());
 }
 
 void verify_bundle(const fs::path &bundle_path)

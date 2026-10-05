@@ -146,6 +146,8 @@ void Build::setup()
     m_system->check_tools();
     m_system->check_packages(m_recipe);
     check_source_tools(m_parts);
+    if (m_options.sign_key)
+        check_sign_key(*m_options.sign_key);
     Sandbox::check_available();
 
     m_build_info.source_date_epoch = m_epoch;

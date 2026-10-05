@@ -86,9 +86,9 @@ private:
 
     void stages() override
     {
+        fetch_sources();
         install_sdk();
         install_kit();
-        fetch_sources();
         if (m_recipe.is_platform())
             build_platform();
         else
