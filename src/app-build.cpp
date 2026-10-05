@@ -33,9 +33,13 @@ namespace
  */
 int64_t build_epoch()
 {
-    if (const char *value = std::getenv("SOURCE_DATE_EPOCH"))
-        return std::stoll(value);
-    return static_cast<int64_t>(std::time(nullptr));
+    const char *value = std::getenv("SOURCE_DATE_EPOCH");
+    if (value == nullptr)
+        return static_cast<int64_t>(std::time(nullptr));
+    auto epoch = parse_int(value);
+    if (!epoch || *epoch < 0)
+        fail("SOURCE_DATE_EPOCH must be a number of seconds since 1970, not '{}'", value);
+    return *epoch;
 }
 
 /**

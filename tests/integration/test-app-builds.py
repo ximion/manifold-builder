@@ -227,3 +227,12 @@ def test_failing_command_is_named(builder, tmp_path):
     assert '+ echo hello\nhello\n' in result.stdout
     assert 'never' not in result.stdout
     assert 'trap' not in result.stdout and 'mfb_step' not in result.stdout
+
+
+def test_malformed_source_date_epoch(builder, hello_recipe, tmp_path, monkeypatch):
+    monkeypatch.setenv('SOURCE_DATE_EPOCH', '123abc')
+    result = builder.run(
+        'build', '--output', str(tmp_path / 'hello.manifold'), str(hello_recipe), cwd=hello_recipe.parent
+    )
+    assert result.returncode == 1
+    assert "SOURCE_DATE_EPOCH must be a number of seconds since 1970, not '123abc'" in result.stdout

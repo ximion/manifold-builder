@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <functional>
+#include <optional>
 #include <ranges>
 #include <set>
 #include <string>
@@ -71,6 +72,11 @@ std::string read_file(const fs::path &path);
  * be written.
  */
 void write_file(const fs::path &path, std::string_view content);
+
+/**
+ * Parse a whole string as a decimal integer, or return nothing.
+ */
+std::optional<int64_t> parse_int(std::string_view text);
 
 /**
  * List everything below `dir`, relative to it, in no particular order.

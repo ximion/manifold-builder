@@ -67,7 +67,8 @@ std::vector<char *> c_strings(std::vector<std::string> &strings)
 }
 
 struct Finished {
-    int status; // -1 if the program could not be started
+    int status;      // -1 if the program could not be started
+    int spawn_error; // why it could not be started
     std::string output;
 };
 
@@ -115,7 +116,7 @@ Finished spawn(const Command &command, bool capture_stdout)
         if (capture_stdout)
             close(pipe_fds[0]);
         LOG_DEBUG(logProcess, "Cannot start {}: {}", command.argv[0], std::strerror(error));
-        return {-1, {}};
+        return {-1, error, {}};
     }
 
     std::string output;
@@ -139,30 +140,22 @@ Finished spawn(const Command &command, bool capture_stdout)
     }
 
     int status = WIFEXITED(wait_status) ? WEXITSTATUS(wait_status) : 128 + WTERMSIG(wait_status);
-    return {status, std::move(output)};
+    return {status, 0, std::move(output)};
 }
 
-void check_finished(const Command &command, const Finished &finished, bool fail_on_error = true)
+void check_finished(const Command &command, const Finished &finished)
 {
-    if (finished.status == -1) {
-        if (fail_on_error)
-            fail("Cannot run {}: program not found", command.argv[0]);
-        else
-            LOG_ERROR(logProcess, "Cannot run {}: program not found", command.argv[0]);
-    }
-    if (finished.status != 0) {
-        if (fail_on_error)
-            fail("Command failed with status {}: {}", finished.status, shell_join(command.argv));
-        else
-            LOG_ERROR(logProcess, "Command failed with status {}: {}", finished.status, shell_join(command.argv));
-    }
+    if (finished.status == -1)
+        fail("Cannot run {}: {}", command.argv[0], std::strerror(finished.spawn_error));
+    if (finished.status != 0)
+        fail("Command failed with status {}: {}", finished.status, shell_join(command.argv));
 }
 
 } // namespace
 
-void run(const Command &command, bool fail_on_error)
+void run(const Command &command)
 {
-    check_finished(command, spawn(command, false), fail_on_error);
+    check_finished(command, spawn(command, false));
 }
 
 std::string run_capture(const Command &command)

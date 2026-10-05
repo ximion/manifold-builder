@@ -34,10 +34,11 @@ struct Command {
 
 /**
  * Run the command and wait for it to finish.
- * @param command The command to run.
- * @param fail_on_error If true, fail the build if the command exists with a non-zero exist status.
+ *
+ * Fails the build if the command can not be started or exits with a non-zero
+ * status.
  */
-void run(const Command &command, bool fail_on_error = true);
+void run(const Command &command);
 
 /**
  * Run the command and return what it wrote to stdout.

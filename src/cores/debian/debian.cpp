@@ -90,11 +90,14 @@ fs::path debuerreotype_scripts_dir()
 int64_t parse_timestamp(const std::string &timestamp)
 {
     Command command{.argv = {"date", "--date", timestamp, "+%s"}, .quiet = true};
+    std::optional<int64_t> epoch;
     try {
-        return std::stoll(run_capture(command));
-    } catch (const std::exception &) {
-        fail("cannot parse snapshot timestamp '{}'", timestamp);
+        epoch = parse_int(run_capture(command));
+    } catch (const BuildError &) {
     }
+    if (!epoch)
+        fail("cannot parse snapshot timestamp '{}'", timestamp);
+    return *epoch;
 }
 
 } // namespace

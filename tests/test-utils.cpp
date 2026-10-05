@@ -9,8 +9,10 @@
 #include "utils.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 using namespace mfb;
+using Catch::Matchers::ContainsSubstring;
 using mfb::test::TempDir;
 
 TEST_CASE("shell quoting", "[utils]")
@@ -89,4 +91,34 @@ TEST_CASE("below some directories, size and time stand in for the content", "[ut
     CHECK(fs::exists(upper / "usr/share/cache"));
     // elsewhere we still compare the content
     CHECK(fs::exists(upper / "etc/config"));
+}
+
+TEST_CASE("file errors fail the build", "[utils]")
+{
+    TempDir dir("file-errors");
+    CHECK_THROWS_WITH(read_file(dir.path()), ContainsSubstring("Is a directory"));
+    CHECK_THROWS_WITH(read_file(dir / "missing"), ContainsSubstring("No such file"));
+    write_file(dir / "empty", "");
+    CHECK(read_file(dir / "empty").empty());
+    if (fs::exists("/dev/full"))
+        CHECK_THROWS_WITH(write_file("/dev/full", "x"), ContainsSubstring("No space left"));
+}
+
+TEST_CASE("whole strings are parsed as integers", "[utils]")
+{
+    CHECK(parse_int("1760000000") == 1760000000);
+    CHECK(parse_int("-5") == -5);
+    CHECK(!parse_int(""));
+    CHECK(!parse_int("123abc"));
+    CHECK(!parse_int(" 1"));
+    CHECK(!parse_int("99999999999999999999"));
+}
+
+TEST_CASE("a program that can not be started is named with the reason", "[utils]")
+{
+    TempDir dir("spawn");
+    write_file(dir / "script", "#!/bin/sh\n");
+    CHECK_THROWS_WITH(run({.argv = {(dir / "script").string()}}), ContainsSubstring("Permission denied"));
+    CHECK_THROWS_WITH(run({.argv = {"mfb-no-such-program"}}), ContainsSubstring("No such file or directory"));
+    CHECK(run_status({.argv = {"mfb-no-such-program"}}) == -1);
 }

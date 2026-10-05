@@ -9,11 +9,13 @@
 #include "error.hpp"
 
 #include <algorithm>
+#include <cerrno>
+#include <charconv>
 #include <chrono>
+#include <cstring>
 #include <format>
 #include <fstream>
 #include <set>
-#include <sstream>
 #include <sys/stat.h>
 
 namespace mfb
@@ -96,18 +98,36 @@ std::string read_file(const fs::path &path)
 {
     std::ifstream file(path, std::ios::binary);
     if (!file)
-        fail("Cannot read {}", path.string());
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
+        fail("Cannot read {}: {}", path.string(), std::strerror(errno));
+    // a read error, e.g. of a directory, sets badbit, the end of the file does not
+    std::string content;
+    char buffer[65536];
+    while (file.read(buffer, sizeof buffer) || file.gcount() > 0)
+        content.append(buffer, static_cast<size_t>(file.gcount()));
+    if (file.bad())
+        fail("Cannot read {}: {}", path.string(), std::strerror(errno));
+    return content;
 }
 
 void write_file(const fs::path &path, std::string_view content)
 {
     std::ofstream file(path, std::ios::binary);
     if (!file)
-        fail("Cannot write {}", path.string());
+        fail("Cannot write {}: {}", path.string(), std::strerror(errno));
     file << content;
+    // a full disk only shows once the data is flushed
+    file.close();
+    if (!file)
+        fail("Cannot write {}: {}", path.string(), std::strerror(errno));
+}
+
+std::optional<int64_t> parse_int(std::string_view text)
+{
+    int64_t value = 0;
+    auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), value);
+    if (text.empty() || error != std::errc() || end != text.data() + text.size())
+        return std::nullopt;
+    return value;
 }
 
 std::vector<fs::path> list_tree(const fs::path &dir, const std::function<bool(const fs::path &)> &skip)
