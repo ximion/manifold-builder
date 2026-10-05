@@ -176,10 +176,17 @@ void mount_overlay(Script &s, const std::vector<fs::path> &lowers, const fs::pat
 
 void strip_overlay_markers(Script &s, const fs::path &upper)
 {
-    // setfattr complains about every directory without the attribute, which is most of them
+    // check with dirs have the marker, and then strip it from those
     s.line(
         std::format(
-            "find {} -type d -print0 | xargs -0 -r setfattr -x user.overlay.opaque 2>/dev/null || true",
+            R"sh(
+getfattr --recursive --physical --no-dereference --absolute-names --match='^user\.overlay\.opaque$' --dump -- {} \
+    | while IFS= read -r line; do
+        case "$line" in
+        "# file: "*) setfattr --no-dereference -x user.overlay.opaque -- "${{line#"# file: "}}" ;;
+        esac
+    done
+)sh",
             shell_quote(upper.string())));
 }
 

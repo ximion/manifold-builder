@@ -9,6 +9,8 @@
 #include "testshared.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <sys/xattr.h>
+#include <unistd.h>
 
 using namespace mfb;
 using mfb::test::TempDir;
@@ -79,6 +81,43 @@ TEST_CASE("a step fails in a command of our own", "[sandbox]")
     s.run({"bash", "-c", "exit 100"});
     s.end_step();
     CHECK(failure_of(s) == "installing packages failed with status 100");
+}
+
+TEST_CASE("overlay markers are removed from the marked directories", "[sandbox]")
+{
+    if (!find_tool("getfattr") || !find_tool("setfattr"))
+        SKIP("getfattr or setfattr is not installed");
+    TempDir dir("markers");
+    auto mark = [](const fs::path &path, const char *name) {
+        return setxattr(path.c_str(), name, "y", 1, 0) == 0;
+    };
+    auto marked = [](const fs::path &path, const char *name) {
+        return getxattr(path.c_str(), name, nullptr, 0) >= 0;
+    };
+    fs::create_directories(dir / "usr/lib");
+    fs::create_directories(dir / "with space");
+    // an upper layer is full of links into the layers below it
+    fs::create_symlink("libfoo.so.1", dir / "usr/lib/libfoo.so");
+    if (!mark(dir / "usr/lib", "user.overlay.opaque"))
+        SKIP("the temporary directory has no user extended attributes");
+    REQUIRE(mark(dir / "with space", "user.overlay.opaque"));
+    REQUIRE(mark(dir / "usr", "user.other"));
+
+    Script s;
+    strip_overlay_markers(s, dir.path());
+    CHECK(run_status({.argv = {"bash", "-c", s.text()}}) == 0);
+    CHECK(!marked(dir / "usr/lib", "user.overlay.opaque"));
+    CHECK(!marked(dir / "with space", "user.overlay.opaque"));
+    CHECK(marked(dir / "usr", "user.other"));
+
+    // a marker that stays fails the script
+    if (geteuid() != 0) {
+        fs::create_directories(dir / "locked");
+        REQUIRE(mark(dir / "locked", "user.overlay.opaque"));
+        fs::permissions(dir / "locked", fs::perms::owner_write, fs::perm_options::remove);
+        CHECK(run_status({.argv = {"bash", "-c", s.text()}, .quiet = true}) != 0);
+        fs::permissions(dir / "locked", fs::perms::owner_write, fs::perm_options::add);
+    }
 }
 
 TEST_CASE("a failure outside of any step", "[sandbox]")

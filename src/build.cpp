@@ -52,6 +52,24 @@ const std::vector<std::string> IMAGE_EXCLUDES = {
 };
 
 /**
+ * Programs every build runs, whatever its recipe.
+ */
+constexpr std::string_view BUILD_TOOLS[] = {
+    "bash",
+    "bwrap",
+    "erofsfuse",
+    "find",
+    "fsck.erofs",
+    "getfattr",
+    "mkfs.erofs",
+    "mount",
+    "setfattr",
+    "systemd-repart",
+    "umount",
+    "unshare",
+};
+
+/**
  * The .gitignore of every work directory, which also marks it as ours.
  */
 constexpr std::string_view WORK_DIR_GITIGNORE_DATA = "# manifold-builder work directory\n*\n";
@@ -123,10 +141,10 @@ void Build::setup()
     m_architecture = m_system->architecture();
     m_parts = parts_to_build(m_recipe, m_architecture);
 
+    for (auto tool : BUILD_TOOLS)
+        require_tool(tool);
     m_system->check_tools();
     m_system->check_packages(m_recipe);
-    require_tool("mkfs.erofs");
-    require_tool("systemd-repart");
     check_source_tools(m_parts);
     Sandbox::check_available();
 

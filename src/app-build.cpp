@@ -13,7 +13,6 @@
 #include "error.hpp"
 #include "identity.hpp"
 #include "logging.hpp"
-#include "process.hpp"
 #include "sandbox.hpp"
 
 #include <ctime>
@@ -75,8 +74,6 @@ private:
         if (m_recipe.is_platform() && m_stack.platform)
             fail("A platform must be built on a core, but {} is a different platform", m_recipe.base);
         m_system = make_core_system(m_stack.core.runtime, build_epoch());
-        require_tool("erofsfuse");
-        require_tool("setfattr");
 
         LOG_INFO(
             logBuild,
