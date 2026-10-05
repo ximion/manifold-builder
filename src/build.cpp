@@ -272,7 +272,8 @@ std::vector<std::pair<std::string, std::string>> Build::part_environment(const P
         {"MANIFOLD_DEST", target.prefix},
         {"MANIFOLD_ID", m_recipe.component},
         {"MANIFOLD_ARCH", m_architecture},
-        {"MANIFOLD_BUILDER_N_JOBS", std::to_string(std::max(1U, std::thread::hardware_concurrency()))},
+        {"MANIFOLD_BUILDER_N_JOBS",
+         std::to_string(m_options.jobs ? m_options.jobs : std::max(1U, std::thread::hardware_concurrency()))},
     };
     auto set = [&](std::string name, const std::string &value) {
         if (!value.empty())
@@ -287,7 +288,9 @@ std::vector<std::pair<std::string, std::string>> Build::part_environment(const P
     set("PATH",
         make_search_path(
             {settings.prepend_path, own.empty() ? "" : own + "/bin", "/usr/bin:/bin", settings.append_path}));
-    set("LD_LIBRARY_PATH", make_search_path({settings.prepend_ld_library_path, settings.append_ld_library_path}));
+    set("LD_LIBRARY_PATH",
+        make_search_path(
+            {settings.prepend_ld_library_path, own.empty() ? "" : own + "/lib", settings.append_ld_library_path}));
     set("PKG_CONFIG_PATH",
         make_search_path(
             {settings.prepend_pkg_config_path,

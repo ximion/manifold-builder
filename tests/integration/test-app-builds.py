@@ -62,6 +62,16 @@ parts:
         sources:
           - type: dir
             path: hello
+      - name: library
+        buildsystem: simple
+        build-commands:
+          - printf 'int answer(void) {{ return 42; }}\\n' > answer.c
+          - cc -shared -fPIC -Wl,-soname,libanswer.so.1 -o libanswer.so.1 answer.c
+          - printf 'int answer(void);\\nint main(void) {{ return answer() != 42; }}\\n' > main.c
+          - cc -o answer main.c ./libanswer.so.1
+          - install -D -m 0644 libanswer.so.1 $MANIFOLD_DEST/lib/libanswer.so.1
+          - install -D answer $MANIFOLD_DEST/bin/answer
+        cleanup: [/bin/answer, /lib/libanswer.so.1]
       - name: simple
         buildsystem: simple
         subdir: src
@@ -72,10 +82,12 @@ parts:
         build-commands:
           # the parts before this one are visible below the prefix
           - test -x $MANIFOLD_DEST/bin/hello-cmake
+          # and so are the libraries they installed
+          - answer
           - cc $CFLAGS -o hello-simple hello.c
           - install -D hello-simple $MANIFOLD_DEST/bin/hello-simple
           - mkdir -p $MANIFOLD_DEST/share/hello/junk
-          - echo "$HELLO_FROM_ENV $MANIFOLD_ID $MANIFOLD_ARCH" > $MANIFOLD_DEST/share/hello/env.txt
+          - echo "$HELLO_FROM_ENV $MANIFOLD_ID $MANIFOLD_ARCH $MANIFOLD_BUILDER_N_JOBS" > $MANIFOLD_DEST/share/hello/env.txt
           - touch $MANIFOLD_DEST/share/hello/junk/garbage.txt $MANIFOLD_DEST/share/hello/sdk-only.txt
         cleanup:
           - /share/hello/junk
@@ -119,7 +131,7 @@ def hello_recipe(tmp_path: Path) -> Path:
 
 
 def test_every_build_system(builder, hello_recipe, tmp_path):
-    bundle = builder.build(hello_recipe, tmp_path / 'hello.manifold')
+    bundle = builder.build(hello_recipe, tmp_path / 'hello.manifold', '--jobs', '3')
 
     kit = bundle.manifest('kit')
     assert kit['component'].startswith(CORE + '.')
@@ -155,7 +167,7 @@ def test_every_build_system(builder, hello_recipe, tmp_path):
         patched = b'greeting: patched' in binary
         assert patched == (program == 'hello-meson'), program
     assert (tree / 'bin/hello').is_symlink()
-    assert (tree / 'share/hello/env.txt').read_text() == 'from-env com.example.Hello x86_64\n'
+    assert (tree / 'share/hello/env.txt').read_text() == 'from-env com.example.Hello x86_64 3\n'
     # cleanup removed the junk directory with its contents
     assert not (tree / 'share/hello/junk').exists()
     # without an application SDK, sdk-only paths are dropped

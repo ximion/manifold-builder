@@ -31,6 +31,7 @@ struct BuildOptions {
     std::optional<fs::path> sign_key; /// SSH key to sign the bundle's index with
     std::optional<fs::path> work_dir; /// Scratch directory. Defaults to _build-<recipe name> beside the recipe
     bool keep_work = false;
+    unsigned jobs = 0; /// Parallel jobs of a part build, one per CPU if 0
 
     /**
      * Location of the layers that app and platform builds are based on.

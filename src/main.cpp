@@ -22,6 +22,7 @@ int main(int argc, char **argv)
     gchar *runtimes_dir = nullptr;
     gchar *sign_key = nullptr;
     gboolean keep_work = FALSE;
+    gint jobs = 0;
     gboolean verbose = FALSE;
     gboolean show_version = FALSE;
     gchar **positional = nullptr;
@@ -51,6 +52,11 @@ int main(int argc, char **argv)
         {"keep-work", 0, 0, G_OPTION_ARG_NONE,
          &keep_work,
          "Keep the work directory after the build", nullptr
+        },
+
+        {"jobs", 'j', 0, G_OPTION_ARG_INT,
+         &jobs,
+         "Number of parallel jobs for building parts [number of CPUs]", "N"
         },
 
         {"sign", 0, 0,
@@ -91,6 +97,11 @@ int main(int argc, char **argv)
         return 2;
     }
 
+    if (jobs < 0) {
+        std::println(stderr, "manifold-builder: --jobs must not be negative");
+        return 2;
+    }
+
     if (show_version) {
         std::println("manifold-builder {}", MFB_VERSION);
         return 0;
@@ -115,6 +126,7 @@ int main(int argc, char **argv)
     if (sign_key)
         options.sign_key = sign_key;
     options.keep_work = keep_work;
+    options.jobs = static_cast<unsigned>(jobs);
     g_option_context_free(context);
 
     mfb::log::init(verbose);
