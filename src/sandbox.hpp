@@ -170,6 +170,7 @@ struct PartBuild {
     std::vector<std::pair<fs::path, std::string>> binds;  // host path, path inside
     std::vector<std::pair<std::string, std::string>> env; // after the defaults, so they win
     std::string script;
+    fs::path script_file; // where we write the script for the sandbox to run
 };
 
 /**
@@ -186,8 +187,10 @@ struct Sandbox {
     /**
      * Run the script as root in the namespace, and fail the build if the
      * script fails.
+     *
+     * The script goes to a numbered file in `tmp_dir`, which bash reads.
      */
-    void run(const Script &script, std::map<std::string, std::string> env = {}) const;
+    void run(const Script &script, std::map<std::string, std::string> env = {});
 
     /**
      * Remove a directory tree whose files may belong to mapped subuids.
@@ -201,6 +204,9 @@ struct Sandbox {
      * Check that user namespaces with subuid mapping work here.
      */
     static void check_available();
+
+private:
+    unsigned m_scripts = 0; // run so far
 };
 
 } // namespace mfb

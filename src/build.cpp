@@ -321,6 +321,7 @@ PartBuild Build::part_build(const Part &part, const fs::path &root, const Instal
             target,
             merge_build_settings(m_recipe, part, m_architecture),
             m_work / "sources" / part.name / part.subdir),
+        .script_file = m_work / "parts" / (part.name + ".sh"),
     };
 }
 
