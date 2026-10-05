@@ -70,15 +70,43 @@ TEST_CASE("invalid recipes are rejected", "[recipe]")
     CHECK(recipe_rejected(app + "kit-strategy: loose\n"));
     // Manifold refuses versions with an epoch
     CHECK(recipe_rejected(
-        "type: app\ncomponent: x.y\nversion: '1:2'\nbase: c.d\nbase-version: 1\n"
+        "type: app\ncomponent: x.y\nversion: '1:2'\nbase: c.d\nbase-version: 1\ncommand: x\n"
         "parts: [{name: p, buildsystem: meson}]\n"));
+
+    // an app needs a command, which Manifold runs by its name
+    const std::string commandless =
+        "component: x.y\nversion: 1\nbase: c.d\nbase-version: 1\n"
+        "parts: [{name: p, buildsystem: meson}]\n";
+    CHECK(recipe_rejected(commandless));
+    CHECK(recipe_rejected(commandless + "command: ''\n"));
+    CHECK(recipe_rejected(commandless + "command: bin/x\n"));
 
     const std::string core = "type: core\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\n";
     // a core needs a bootstrap section
     CHECK(recipe_rejected(core));
     CHECK(recipe_rejected(core + "bootstrap: {suite: trixie}\n"));
-    CHECK(recipe_rejected(
-        core + "bootstrap: {suite: trixie, snapshot: '2026-10-04T00:00:00Z'}\nlocales: [de_DE.UTF-8]\n"));
+    const std::string bootstrap = "bootstrap: {suite: trixie, snapshot: '2026-10-04T00:00:00Z'}\n";
+    CHECK(recipe_rejected(core + bootstrap + "locales: [de_DE.UTF-8]\n"));
+    CHECK(recipe_rejected(core + bootstrap + "locales: [de_DE, de_DE]\n"));
+}
+
+TEST_CASE("keys of other recipe types are rejected", "[recipe]")
+{
+    const std::string core =
+        "type: core\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\n"
+        "bootstrap: {suite: trixie, snapshot: '2026-10-04T00:00:00Z'}\n";
+    const std::string platform = "type: platform\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\nbase: c.d\n";
+    CHECK(recipe_rejected(core + "base: c.d\n"));
+    CHECK(recipe_rejected(core + "base-version: 1\n"));
+    for (const auto &recipe : {core, platform}) {
+        CHECK(!recipe_rejected(recipe));
+        CHECK(recipe_rejected(recipe + "command: x\n"));
+        CHECK(recipe_rejected(recipe + "kit-strategy: strict\n"));
+        CHECK(recipe_rejected(recipe + "generate-sdk: true\n"));
+        CHECK(recipe_rejected(recipe + "run-on-sdk: true\n"));
+        // the default does no harm
+        CHECK(!recipe_rejected(recipe + "kit-strategy: roaming\n"));
+    }
 }
 
 TEST_CASE("platform recipes", "[recipe]")
@@ -117,12 +145,17 @@ TEST_CASE("only cores have a bootstrap and actions", "[recipe]")
 TEST_CASE("MetaInfo keys", "[recipe]")
 {
     const std::string app = std::string(APP_HEADER) + "parts: [{name: p, buildsystem: meson}]\n";
-    auto plain = parse_recipe(app, "inline");
+    TempDir dir("metainfo");
+    write_file(dir / "x.y.metainfo.xml", "<component/>\n");
+    auto plain = parse_recipe(app, "inline", dir.path());
     CHECK(!plain.metainfo_file);
-    auto named = parse_recipe(app + "metainfo-file: x.y.metainfo.xml\n", "inline");
+    auto named = parse_recipe(app + "metainfo-file: x.y.metainfo.xml\n", "inline", dir.path());
     CHECK(named.metainfo_file == "x.y.metainfo.xml");
     CHECK(named.hash != plain.hash);
     CHECK(recipe_rejected(app + "metainfo-file: ''\n"));
+    // the file must exist, relative to the recipe
+    CHECK(recipe_rejected(app + "metainfo-file: x.y.metainfo.xml\n"));
+    CHECK(recipe_rejected(app + "metainfo-file: missing.metainfo.xml\n", dir.path()));
 
     // an app ships its own MetaInfo
     for (std::string key : {"name", "summary", "description", "project-license", "homepage"})

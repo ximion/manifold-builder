@@ -19,7 +19,7 @@ def test_usage(builder):
 def test_invalid_recipe(builder, tmp_path):
     recipe = tmp_path / 'broken.yaml'
     recipe.write_text(
-        'component: com.example.Broken\nversion: 1\nbase: net.debian.core13\n'
+        'component: com.example.Broken\nversion: 1\ncommand: broken\nbase: net.debian.core13\n'
         'base-version: "13"\nparts: [{name: p, buildsystem: quake}]\n'
     )
     result = builder.run('build', str(recipe))

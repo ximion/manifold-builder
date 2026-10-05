@@ -275,7 +275,8 @@ private:
         for (const auto *part : m_parts)
             cleanup_part(*part, app_stage() / "app", files_added(*part));
 
-        if (!m_recipe.command.empty() && !fs::exists(app_stage() / "app/bin" / m_recipe.command))
+        // a link may point below the runtime's /usr, which is not in the stage
+        if (!fs::exists(fs::symlink_status(app_stage() / "app/bin" / m_recipe.command)))
             LOG_WARNING(logBuild, "Command '{}' was not installed to /app/bin", m_recipe.command);
     }
 

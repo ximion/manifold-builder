@@ -77,6 +77,6 @@ inline bool recipe_rejected(std::string_view yaml, const fs::path &dir = fs::cur
 /**
  * Start of a valid app recipe that tests append keys to.
  */
-constexpr std::string_view APP_HEADER = "component: x.y\nversion: 1\nbase: c.d\nbase-version: 1\n";
+constexpr std::string_view APP_HEADER = "component: x.y\nversion: 1\nbase: c.d\nbase-version: 1\ncommand: x\n";
 
 } // namespace mfb::test

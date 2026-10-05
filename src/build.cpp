@@ -527,8 +527,6 @@ fs::path Build::place_metainfo(Script &s, const Output &output) const
 
     if (!output.manifest.sdk && id == m_recipe.component && m_recipe.metainfo_file) {
         auto source = m_recipe_dir / *m_recipe.metainfo_file;
-        if (!fs::is_regular_file(source))
-            fail("metainfo-file '{}' listed in the recipe does not exist", source.string());
         for (const auto &path : shipped) {
             LOG_WARNING(logBuild, "{}: the recipe's metainfo-file replaces {}", id, image_path(output.tree, path));
             s.run({"rm", path.string()});

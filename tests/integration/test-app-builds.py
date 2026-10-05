@@ -188,6 +188,7 @@ def test_mftestapp(builder, tmp_path):
 FAILING_RECIPE = '''\
 component: com.example.Failing
 version: 1.0.0
+command: failing
 
 base: {core}
 base-version: "13"

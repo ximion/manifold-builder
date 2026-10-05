@@ -269,7 +269,7 @@ void validate_parts(const Recipe &recipe, const auto &problem)
     }
 }
 
-void validate(const Recipe &recipe, std::string_view origin)
+void validate(const Recipe &recipe, std::string_view origin, const fs::path &dir)
 {
     auto problem = [&](std::string message) {
         fail("{}: {}", origin, message);
@@ -298,18 +298,25 @@ void validate(const Recipe &recipe, std::string_view origin)
         problem("'image.compression-level' must not be negative");
     if (recipe.metainfo_file && recipe.metainfo_file->empty())
         problem("'metainfo-file' must name a file");
+    else if (recipe.metainfo_file && !fs::is_regular_file(dir / *recipe.metainfo_file))
+        problem(std::format("metainfo-file '{}' does not exist", (dir / *recipe.metainfo_file).string()));
 
     if (recipe.is_core()) {
         if (!recipe.bootstrap)
             problem("A core recipe needs a 'bootstrap' section");
         if (auto issue = check_bootstrap(*recipe.bootstrap); !issue.empty())
             problem(issue);
+        if (!recipe.base.empty() || !recipe.base_version.empty())
+            problem("A core recipe has no 'base' or 'base-version': it is the lowest layer");
+        std::set<std::string> locales;
         for (const auto &locale : recipe.locales) {
             bool plain = !locale.empty() && std::ranges::all_of(locale, [](unsigned char c) {
                 return std::isalnum(c) || c == '_';
             });
             if (!plain)
                 problem(std::format("Locale '{}' must be a plain name like de_DE; UTF-8 is implied", locale));
+            if (!locales.insert(locale).second)
+                problem(std::format("Locale '{}' is listed more than once", locale));
         }
     } else if (recipe.is_platform()) {
         // a platform is built on the current core and requires exactly that version
@@ -339,13 +346,33 @@ void validate(const Recipe &recipe, std::string_view origin)
                         key));
         }
         if (recipe.base.empty() || recipe.base_version.empty())
-            problem("an app recipe needs 'base' (naming a core or a platform) and 'base-version'");
+            problem("An app recipe needs 'base' (naming a core or a platform) and 'base-version'");
+        // Manifold looks the command up in /app/bin and the PATH
+        if (recipe.command.empty() || recipe.command.find('/') != std::string::npos)
+            problem(
+                std::format(
+                    "An app recipe needs 'command': the name of the program to run, without a path, not '{}'",
+                    recipe.command));
         if (recipe.parts.empty())
-            problem("an app recipe needs at least one entry in 'parts'");
+            problem("An app recipe needs at least one entry in 'parts'");
         if (recipe.kit_strategy != "roaming" && recipe.kit_strategy != "strict")
             problem(std::format("'kit-strategy' must be 'roaming' or 'strict', not '{}'", recipe.kit_strategy));
     }
     validate_parts(recipe, problem);
+
+    // only an app is run, has a kit and may go without an SDK
+    if (recipe.is_core() || recipe.is_platform()) {
+        const std::pair<std::string_view, bool> app_keys[] = {
+            {"command", !recipe.command.empty()},
+            {"kit-strategy", recipe.kit_strategy != "roaming"},
+            {"generate-sdk", recipe.generate_sdk},
+            {"run-on-sdk", recipe.run_on_sdk},
+        };
+        for (const auto &[key, set] : app_keys) {
+            if (set)
+                problem(std::format("'{}' is only allowed in an app recipe", key));
+        }
+    }
 
     // only a core starts from an empty tree, at a pinned archive state
     if (!recipe.is_core() && recipe.bootstrap)
@@ -450,7 +477,7 @@ Recipe parse_recipe(std::string_view yaml, std::string_view origin, const fs::pa
 
     std::vector<fs::path> including;
     resolve_parts(recipe.parts, fs::absolute(dir), including);
-    validate(recipe, origin);
+    validate(recipe, origin, dir);
 
     // we derive the recipe hash from the normalized and combined JSON representation
     // `glz::write_json` will create minified JSON for us by default (needed, we want the hash to remain stable)

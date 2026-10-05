@@ -178,8 +178,10 @@ struct Recipe {
     std::vector<Action> actions;
 
     // app and platform
-    std::string command;
-    std::string base;         /// The layer below: a core or platform for apps, a core for platforms
+    std::string base; /// The layer below: a core or platform for apps, a core for platforms
+
+    // app
+    std::string command;      /// Program in /app/bin or the PATH to run, by its name
     std::string base_version; /// Oldest base version an app accepts. Platforms are built on the current core.
     std::string kit_strategy = "roaming"; /// How the application relates to its kit: "roaming" or "strict"
     bool generate_sdk = false;
