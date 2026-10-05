@@ -28,19 +28,11 @@ namespace
 quill::Logger *const logStore = log::logger("store");
 
 /**
- * How we match a wanted version. A kit accepts any version at least as new
- * as the recipe asks for, a platform needs the exact core it was built on.
+ * Check if a version is at least `minimum`, or if there is no minimum.
  */
-enum class Match {
-    At_least,
-    Exact,
-};
-
-bool acceptable(const std::string &version, const std::string &wanted, Match match)
+bool acceptable(const std::string &version, const std::string &minimum)
 {
-    if (wanted.empty())
-        return true;
-    return match == Match::Exact ? version == wanted : mf_version_compare(version.c_str(), wanted.c_str()) >= 0;
+    return minimum.empty() || mf_version_compare(version.c_str(), minimum.c_str()) >= 0;
 }
 
 MfComponentKind kind_of(const Manifest &manifest)
@@ -142,15 +134,25 @@ LayerImages read_installed(MfStore *store, MfComponent *runtime)
 /**
  * Find a layer in a plain directory of extracted bundles, as the builder
  * writes them.
+ *
+ * We take the build with `content_hash` if one is given, and the newest one
+ * of at least `minimum_version` otherwise.
  */
-LayerImages find_bundled(const fs::path &dir, const std::string &component, const std::string &wanted, Match match)
+LayerImages find_bundled(
+    const fs::path &dir,
+    const std::string &component,
+    const std::string &minimum_version,
+    const std::string &content_hash = {})
 {
     std::optional<Manifest> best;
     for (const auto &entry : fs::directory_iterator(dir)) {
         if (!entry.path().filename().string().ends_with(".manifold.json"))
             continue;
         auto manifest = read_manifest(entry.path());
-        if (!manifest || !is_layer(*manifest, component, false) || !acceptable(manifest->version, wanted, match))
+        if (!manifest || !is_layer(*manifest, component, false))
+            continue;
+        if (content_hash.empty() ? !acceptable(manifest->version, minimum_version)
+                                 : manifest->content_hash != content_hash)
             continue;
         if (!best
             || mf_version_compare_with_rev(
@@ -161,8 +163,14 @@ LayerImages find_bundled(const fs::path &dir, const std::string &component, cons
                    > 0)
             best = manifest;
     }
+    if (!best && !content_hash.empty())
+        fail("No build of {} with content hash {} found in {}", component, content_hash, dir.string());
     if (!best)
-        fail("No {} version {} found in {}", component, wanted.empty() ? "at all" : wanted, dir.string());
+        fail(
+            "No {} version {} found in {}",
+            component,
+            minimum_version.empty() ? "at all" : minimum_version,
+            dir.string());
 
     LayerImages layer;
     layer.runtime = *best;
@@ -249,14 +257,14 @@ Stack find_stack(const fs::path &dir, const std::string &base, const std::string
         // take the current version from the store, if it is new enough
         runtime = get_component(store, base, nullptr);
         layer = read_installed(store, runtime);
-        if (!acceptable(layer.runtime.version, minimum_version, Match::At_least))
+        if (!acceptable(layer.runtime.version, minimum_version))
             fail(
                 "The installed {} is version {}, but {} or newer is needed",
                 base,
                 layer.runtime.version,
                 minimum_version);
     } else {
-        layer = find_bundled(dir, base, minimum_version, Match::At_least);
+        layer = find_bundled(dir, base, minimum_version);
     }
 
     if (kind_of(layer.runtime) == MF_COMPONENT_KIND_PLATFORM) {
@@ -271,7 +279,8 @@ Stack find_stack(const fs::path &dir, const std::string &base, const std::string
                 fail("{}", error->message);
             stack.core = read_installed(store, core);
         } else {
-            stack.core = find_bundled(dir, layer.runtime.base->component, layer.runtime.base->version, Match::Exact);
+            // a rebuild of the same core version is a different core
+            stack.core = find_bundled(dir, layer.runtime.base->component, {}, layer.runtime.base->content_hash);
         }
         if (stack.core.runtime.content_hash != layer.runtime.base->content_hash)
             fail(

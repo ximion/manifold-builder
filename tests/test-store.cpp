@@ -32,7 +32,7 @@ TEST_CASE("cores and platforms are found", "[store]")
             .hash_offset = 2097152,
         };
     };
-    auto describe = [&](std::string version, bool sdk, int64_t revision = 1) {
+    auto describe = [&](std::string version, bool sdk, int64_t revision = 1, std::string build = "") {
         Manifest manifest;
         manifest.component = sdk ? "net.example.core.sdk" : "net.example.core";
         manifest.kind = "core";
@@ -40,13 +40,13 @@ TEST_CASE("cores and platforms are found", "[store]")
         manifest.architecture = "amd64";
         manifest.sdk = sdk;
         manifest.identity = checksum_data_hex(sdk ? "sdk-identity" : "core-identity", ChecksumKind::Sha256);
-        manifest.content_hash = checksum_data_hex(version + (sdk ? "-sdk" : ""), ChecksumKind::Sha256);
+        manifest.content_hash = checksum_data_hex(version + build + (sdk ? "-sdk" : ""), ChecksumKind::Sha256);
         if (sdk)
             manifest.base = BaseRef{
                 .component = "net.example.core",
                 .version = version,
                 .identity = checksum_data_hex("core-identity", ChecksumKind::Sha256),
-                .content_hash = checksum_data_hex(version, ChecksumKind::Sha256)};
+                .content_hash = checksum_data_hex(version + build, ChecksumKind::Sha256)};
         manifest.revision = revision;
         auto stem = std::format("{}_{}-{}_amd64", manifest.component, version, revision);
         manifest.image = image_of(stem + ".raw");
@@ -96,11 +96,16 @@ TEST_CASE("cores and platforms are found", "[store]")
     };
     platform(false);
     platform(true);
+    // a newer build of the same core version is not the one the platform was built on
+    describe("12.2", false, 2, "rebuilt");
+    describe("12.2", true, 2, "rebuilt");
     auto on_platform = find_stack(dir, "net.example.platform", "");
     REQUIRE(on_platform.platform);
     CHECK(on_platform.base().runtime.component == "net.example.platform");
     CHECK(on_platform.core.runtime.version == "12.2");
+    CHECK(on_platform.core.runtime.revision == 1);
     CHECK(on_platform.core.sdk.version == "12.2");
+    CHECK(on_platform.core.sdk.revision == 1);
 
     // Manifold's own store layout, read through libmanifold. Images are stored by
     // verity hash. Each component has a directory per version, holding the manifest
