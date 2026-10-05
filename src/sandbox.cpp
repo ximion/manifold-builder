@@ -227,21 +227,41 @@ void move_paths(
             globs += ' ';
         globs += std::format("{}/{}", prefix, pattern.starts_with('/') ? pattern.substr(1) : pattern);
     }
+    // the subshell keeps the shell options and the directory to itself
     s.line(
         std::format(
             R"sh(
-shopt -s globstar nullglob
-cd {0}
-for path in {1}; do
-    [ -e "$path" ] || continue
-    mkdir -p {2} && cp -a --parents "$path" {2}
-    rm -rf "$path"
-done
-cd /
+(
+    shopt -s globstar nullglob
+    cd {0}
+    for path in {1}; do
+        [ -e "$path" ] || [ -L "$path" ] || continue
+        mkdir -p {2}
+        cp -a --parents "$path" {2}
+        rm -rf "$path"
+    done
+)
 )sh",
             shell_quote(tree.string()),
             globs,
             shell_quote(destination.string())));
+}
+
+void merge_into_usr(Script &s, const fs::path &tree)
+{
+    // a directory in an overlay layer would hide the link of the tree below
+    s.line(
+        std::format(
+            R"sh(
+for dir in bin sbin lib lib32 lib64 libx32; do
+    if [ -d {0}/"$dir" ] && [ ! -L {0}/"$dir" ]; then
+        mkdir -p {0}/usr/"$dir"
+        cp -a {0}/"$dir"/. {0}/usr/"$dir"/
+        rm -rf {0}/"$dir"
+    fi
+done
+)sh",
+            shell_quote(tree.string())));
 }
 
 void Sandbox::run(const Script &script, std::map<std::string, std::string> env) const

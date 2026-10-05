@@ -26,6 +26,12 @@ class Script;
 void postprocess_core(Script &s, const fs::path &tree, const std::string &multiarch);
 
 /**
+ * Fail unless a core's tree is merged-usr, with /bin, /sbin and /lib
+ * linking into /usr.
+ */
+void check_merged_usr(const fs::path &tree);
+
+/**
  * Build the runtime and SDK images of a core into a bundle, and return its path.
  */
 fs::path build_core(const Recipe &recipe, const fs::path &recipe_file, const BuildOptions &options);

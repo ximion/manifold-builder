@@ -369,6 +369,7 @@ void Build::stage_parts(Script &s, const std::vector<fs::path> &lowers) const
         s.begin_step(std::format("part '{}'", part->name));
         run_part_build(s, build);
         s.end_step();
+        merge_into_usr(s, part_stage(*part));
 
         s.run({"umount", root.string()});
         stages.insert(stages.begin(), part_stage(*part));

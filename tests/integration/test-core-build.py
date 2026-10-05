@@ -41,6 +41,8 @@ parts:
     build-commands:
       - install -D -m 0644 /dev/null $DESTDIR$MANIFOLD_DEST/share/testcore/data.txt
       - install -D -m 0644 /dev/null $DESTDIR$MANIFOLD_DEST/share/testcore/junk/junk.txt
+      # an old-style path, which goes below /usr
+      - install -D -m 0644 /dev/null $DESTDIR/lib/udev/rules.d/60-testcore.rules
       # the core's own MetaInfo, instead of one generated from the recipe
       - install -D -m 0644 com.example.testcore.metainfo.xml $DESTDIR/usr/local/share/metainfo/com.example.testcore.metainfo.xml
     cleanup:
@@ -53,6 +55,7 @@ parts:
     buildsystem: simple
     build-commands:
       - test -e /usr/share/testcore/junk/junk.txt
+      - test -L /lib && test -e /lib/udev/rules.d/60-testcore.rules
       - "! touch /usr/share/testcore/stray 2>/dev/null"
       - install -D -m 0644 /usr/share/testcore/data.txt $DESTDIR$MANIFOLD_DEST/share/testcore/copy.txt
 
@@ -167,6 +170,8 @@ def test_core(core):
     assert (tree / 'usr/share/testcore/data.txt').is_file()
     assert (tree / 'usr/share/testcore/link.txt').is_symlink()
     assert (tree / 'usr/share/testcore/copy.txt').is_file()
+    assert (tree / 'lib').is_symlink()
+    assert (tree / 'usr/lib/udev/rules.d/60-testcore.rules').is_file()
     assert not (tree / 'usr/share/testcore/junk').exists()
     assert not (tree / 'usr/include').exists()
     # documentation always goes to the SDK

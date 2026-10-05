@@ -149,6 +149,12 @@ void move_paths(
     const fs::path &destination);
 
 /**
+ * Move the bin, sbin and lib directories at the top of `tree` into its
+ * /usr, where every tree we build has them.
+ */
+void merge_into_usr(Script &s, const fs::path &tree);
+
+/**
  * The sandbox in which we build a part.
  *
  * We run bubblewrap over `root`, with the sources at /run/build/<name>, a

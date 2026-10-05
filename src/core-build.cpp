@@ -94,6 +94,7 @@ private:
             s.end_step();
         }
         m_sandbox.run(s);
+        check_merged_usr(rootfs());
     }
 
     // --- stage 2: runtime --------------------------------------------------
@@ -215,6 +216,18 @@ void postprocess_core(Script &s, const fs::path &tree, const std::string &multia
     auto conf = tree / "etc/fonts/conf.d/50-manifold-host-fonts.conf";
     s.run({"mkdir", "-p", conf.parent_path().string()});
     s.line(std::format("printf '%s' {} > {}", shell_quote(fonts), shell_quote(conf.string())));
+}
+
+void check_merged_usr(const fs::path &tree)
+{
+    for (std::string_view dir : {"bin", "sbin", "lib"}) {
+        std::error_code error;
+        auto target = fs::read_symlink(tree / dir, error);
+        if (target.is_absolute())
+            target = target.relative_path();
+        if (error || target.lexically_normal() != fs::path("usr") / dir)
+            fail("/{0} of the core is not a link to /usr/{0}, but every core must be merged-usr", dir);
+    }
 }
 
 fs::path build_core(const Recipe &recipe, const fs::path &recipe_file, const BuildOptions &options)

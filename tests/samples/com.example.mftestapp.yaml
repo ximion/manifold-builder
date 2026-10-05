@@ -10,7 +10,8 @@ base-version: 6.8.0
 packages:
   apt:
   - vulkan-tools
-  - hotspot
+  - vkd3d-demos
+  - clpeak
 packages-sdk:
   apt:
   - meson
