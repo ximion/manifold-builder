@@ -45,6 +45,8 @@ private:
     void prepare() override
     {
         m_system = make_core_system(*m_recipe.bootstrap);
+        // only a core starts from an empty tree
+        m_system->check_bootstrap_tools();
         LOG_INFO(
             logBuild,
             "{} {}, SOURCE_DATE_EPOCH={}",

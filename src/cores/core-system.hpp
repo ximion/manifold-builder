@@ -50,9 +50,14 @@ public:
     virtual ~CoreSystem() = default;
 
     /**
-     * Fail the build if a tool the distribution needs is missing.
+     * Fail the build if a tool that every build on this distribution needs is missing.
      */
     virtual void check_tools() const = 0;
+
+    /**
+     * Fail the build if a tool that bootstrap() needs is missing.
+     */
+    virtual void check_bootstrap_tools() const = 0;
 
     /**
      * Get the Manifold name of the architecture we build for (e.g. "x86_64").

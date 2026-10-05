@@ -155,8 +155,15 @@ std::string DebianSystem::script(std::string_view name) const
 
 void DebianSystem::check_tools() const
 {
-    if (!fs::is_regular_file(m_scripts / "debuerreotype-init"))
+    // every build runs commands in its trees with this one
+    if (!fs::is_regular_file(m_scripts / "debuerreotype-chroot"))
         fail("debuerreotype scripts not found in {} (set DEBUERREOTYPE_SCRIPT_DIR)", m_scripts.string());
+}
+
+void DebianSystem::check_bootstrap_tools() const
+{
+    if (!fs::is_regular_file(m_scripts / "debuerreotype-init"))
+        fail("debuerreotype-init not found in {} (set DEBUERREOTYPE_SCRIPT_DIR)", m_scripts.string());
     check_debootstrap();
 }
 

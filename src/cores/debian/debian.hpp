@@ -62,6 +62,7 @@ public:
     static std::string check_bootstrap(const Bootstrap &bootstrap);
 
     void check_tools() const override;
+    void check_bootstrap_tools() const override;
     std::string architecture() const override;
     std::string multiarch() const override;
     int64_t epoch() const override;
