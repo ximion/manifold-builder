@@ -22,7 +22,7 @@ void CoreSystem::check_packages(const Recipe &recipe) const
         for (const auto &[system, packages] : *set) {
             if (system != package_system() && !packages.empty())
                 fail(
-                    "the recipe lists {} packages, but {} is built with {}",
+                    "The recipe lists {} packages, but {} is built with {}",
                     system,
                     recipe.is_core() ? recipe.component : recipe.base,
                     package_system());

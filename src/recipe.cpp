@@ -257,14 +257,14 @@ void validate_parts(const Recipe &recipe, const auto &problem)
                     join(build_system_names(), ", "),
                     part->buildsystem));
         if (part->buildsystem == "simple" && part->build_commands.empty())
-            problem(std::format("part '{}' uses the simple build system, but has no build-commands", part->name));
+            problem(std::format("Part '{}' uses the simple build system, but has no build-commands", part->name));
         if (!part->subdir.empty() && !stays_below(part->subdir))
-            problem(std::format("part '{}': subdir '{}' must stay inside the sources", part->name, part->subdir));
+            problem(std::format("Part '{}': subdir '{}' must stay inside the sources", part->name, part->subdir));
         for (const auto &source : part->sources) {
             if (!stays_below(source.dest))
-                problem(std::format("part '{}': dest '{}' must stay inside the sources", part->name, source.dest));
+                problem(std::format("Part '{}': dest '{}' must stay inside the sources", part->name, source.dest));
             if (auto issue = check_source(source); !issue.empty())
-                problem(std::format("part '{}': {}", part->name, issue));
+                problem(std::format("Part '{}': {}", part->name, issue));
         }
     }
 }
@@ -299,7 +299,7 @@ void validate(const Recipe &recipe, std::string_view origin, const fs::path &dir
     if (recipe.metainfo_file && recipe.metainfo_file->empty())
         problem("'metainfo-file' must name a file");
     else if (recipe.metainfo_file && !fs::is_regular_file(dir / *recipe.metainfo_file))
-        problem(std::format("metainfo-file '{}' does not exist", (dir / *recipe.metainfo_file).string()));
+        problem(std::format("The metainfo-file '{}' does not exist", (dir / *recipe.metainfo_file).string()));
 
     if (recipe.is_core()) {
         if (!recipe.bootstrap)

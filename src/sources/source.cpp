@@ -55,7 +55,7 @@ std::unique_ptr<SourceFetcher> source_fetcher_for(const std::string &type)
         if (known == type)
             return factory();
     }
-    fail("unknown source type '{}'", type);
+    fail("Unknown source type '{}'", type);
 }
 
 std::string check_source(const Source &source)

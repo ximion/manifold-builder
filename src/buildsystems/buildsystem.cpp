@@ -65,7 +65,7 @@ std::unique_ptr<BuildSystem> build_system_for(const std::string &name)
         if (known == name)
             return factory();
     }
-    fail("unknown build system '{}'", name);
+    fail("Unknown build system '{}'", name);
 }
 
 std::string parallel_command(const std::vector<std::string> &argv, const std::vector<std::string> &arguments)

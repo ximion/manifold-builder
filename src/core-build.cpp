@@ -224,7 +224,7 @@ void check_merged_usr(const fs::path &tree)
 fs::path build_core(const Recipe &recipe, const fs::path &recipe_file, const BuildOptions &options)
 {
     if (!recipe.is_core())
-        fail("recipe {} does not describe a core", recipe.component);
+        fail("Recipe {} does not describe a core", recipe.component);
     return CoreBuild(recipe, recipe_file, options).run();
 }
 

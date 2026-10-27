@@ -127,7 +127,7 @@ LayerImages read_installed(MfStore *store, MfComponent *runtime)
     if (!is_layer(layer.sdk, sdk_component, true))
         fail("{} is not the SDK of {}", sdk_component, component);
     if (!layer.sdk.base || layer.sdk.base->content_hash != layer.runtime.content_hash)
-        fail("the installed SDK of {} is layered on another image than the version in use", component);
+        fail("The installed SDK of {} is layered on another image than the version in use", component);
     return layer;
 }
 
@@ -201,7 +201,7 @@ void read_base_metainfo(Stack &stack)
     g_autofree gchar *tmp_name = nullptr;
     int fd = g_file_open_tmp("manifold-builder-XXXXXX.metainfo.xml", &tmp_name, &error);
     if (fd < 0)
-        fail("cannot create a temporary file: {}", error->message);
+        fail("Cannot create a temporary file: {}", error->message);
     close(fd);
     fs::path metainfo = tmp_name;
 

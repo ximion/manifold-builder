@@ -162,7 +162,7 @@ std::string repart_architecture(const std::string &architecture)
     };
     auto found = names.find(architecture);
     if (found == names.end())
-        fail("no systemd architecture known for architecture '{}'", architecture);
+        fail("No systemd architecture known for architecture '{}'", architecture);
     return found->second;
 }
 

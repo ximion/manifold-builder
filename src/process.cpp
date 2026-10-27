@@ -79,7 +79,7 @@ struct Finished {
 Finished spawn(const Command &command, bool capture_stdout)
 {
     if (command.argv.empty())
-        fail("attempted to run an empty command");
+        fail("Attempted to run an empty command");
 
     LOG_DEBUG(logProcess, "+ {}", shell_join(command.argv));
     log::flush();
@@ -233,7 +233,7 @@ fs::path require_tool(std::string_view name)
 {
     auto tool = find_tool(name);
     if (!tool)
-        fail("required tool '{}' not found on PATH", name);
+        fail("Required tool '{}' not found on PATH", name);
     return *tool;
 }
 

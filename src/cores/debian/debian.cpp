@@ -96,7 +96,7 @@ int64_t parse_timestamp(const std::string &timestamp)
     } catch (const BuildError &) {
     }
     if (!epoch)
-        fail("cannot parse snapshot timestamp '{}'", timestamp);
+        fail("Cannot parse snapshot timestamp '{}'", timestamp);
     return *epoch;
 }
 
@@ -106,7 +106,7 @@ std::string manifold_architecture(const std::string &dpkg_architecture)
 {
     const auto *found = find_dpkg_architecture(dpkg_architecture);
     if (found == nullptr)
-        fail("no architecture known for dpkg architecture '{}'", dpkg_architecture);
+        fail("No architecture known for dpkg architecture '{}'", dpkg_architecture);
     return std::string(found->manifold);
 }
 
@@ -114,7 +114,7 @@ std::string dpkg_architecture(const std::string &manifold_architecture)
 {
     auto found = std::ranges::find(ARCHITECTURES, manifold_architecture, &Architecture::manifold);
     if (found == std::end(ARCHITECTURES))
-        fail("no dpkg architecture known for architecture '{}'", manifold_architecture);
+        fail("No dpkg architecture known for architecture '{}'", manifold_architecture);
     return std::string(found->dpkg);
 }
 

@@ -132,7 +132,7 @@ SourceRecord GitSource::fetch(const Source &source, const fs::path &destination,
     if (!source.commit.empty() && !source.tag.empty()) {
         auto tagged = run_capture({.argv = {"git", "-C", checkout.string(), "rev-parse", source.tag + "^{commit}"}});
         if (tagged != commit)
-            fail("tag {} of {} is commit {}, not {}", source.tag, source.url, tagged, source.commit);
+            fail("Tag {} of {} is commit {}, not {}", source.tag, source.url, tagged, source.commit);
     }
     if (!empty)
         run({.argv = {"cp", "-a", "--reflink=auto", (checkout / ".").string(), destination.string()}});
