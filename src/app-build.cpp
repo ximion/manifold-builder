@@ -170,16 +170,6 @@ private:
         return lowers;
     }
 
-    fs::path upper(std::string_view layer) const
-    {
-        return m_work / layer / "upper";
-    }
-
-    fs::path merged(std::string_view layer) const
-    {
-        return m_work / layer / "merged";
-    }
-
     /**
      * Get the tree the app image is made from. Its /app is the build's /app.
      */
@@ -196,17 +186,16 @@ private:
     /**
      * Mount the stack's images, then an overlay for `layer` over `lowers`.
      */
-    void mount_layers(Script &s, std::string_view layer, std::vector<fs::path> lowers) const
+    void mount_layers(Script &s, std::string_view layer, const std::vector<fs::path> &lowers) const
     {
         mount_stack(s);
-        mount_overlay(s, lowers, upper(layer), m_work / layer / "work", merged(layer));
+        mount_upper(s, layer, lowers);
     }
 
     void unmount_layers(Script &s, std::string_view layer) const
     {
-        s.run({"umount", merged(layer).string()});
+        unmount_upper(s, layer);
         unmount_stack(s);
-        strip_overlay_markers(s, upper(layer));
     }
 
     // --- stage 1: SDK packages ----------------------------------------------
@@ -235,7 +224,7 @@ private:
     void install_kit()
     {
         log::section_box("Kit Packages");
-        auto packages = runtime_packages();
+        auto packages = m_system->packages_request_runtime(m_recipe);
         packages.insert(packages.end(), m_linked_packages.begin(), m_linked_packages.end());
         std::ranges::sort(packages);
         packages.erase(std::ranges::unique(packages).begin(), packages.end());

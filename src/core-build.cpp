@@ -67,10 +67,6 @@ private:
     {
         return m_work / "rootfs";
     }
-    fs::path sdk_dir(std::string_view name) const
-    {
-        return m_work / "sdk" / name;
-    }
 
     // --- stage 1: bootstrap ------------------------------------------------
 
@@ -90,7 +86,7 @@ private:
     void install_runtime()
     {
         log::section_box("Runtime packages");
-        auto packages = runtime_packages();
+        auto packages = m_system->packages_request_runtime(m_recipe);
         LOG_INFO(logBuild, "Installing {} packages...", packages.size());
         Script s;
         install_packages(s, rootfs(), packages, "Installing packages");
@@ -113,21 +109,20 @@ private:
     {
         log::section_box("SDK packages");
         Script s;
-        mount_overlay(s, {rootfs()}, sdk_dir("upper"), sdk_dir("work"), sdk_dir("merged"));
-        install_packages(s, sdk_dir("merged"), m_system->packages_request_sdk(m_recipe), "Installing SDK packages");
-        run_actions(s, Stage::sdk, sdk_dir("merged"));
-        s.run({"umount", sdk_dir("merged").string()});
-        strip_overlay_markers(s, sdk_dir("upper"));
+        mount_upper(s, "sdk", {rootfs()});
+        install_packages(s, merged("sdk"), m_system->packages_request_sdk(m_recipe), "Installing SDK packages");
+        run_actions(s, Stage::sdk, merged("sdk"));
+        unmount_upper(s, "sdk");
         // Parts need the SDK's compilers, but what they install belongs to the
         // runtime, so we stage it for now.
-        stage_parts(s, {sdk_dir("upper"), rootfs()});
+        stage_parts(s, {upper("sdk"), rootfs()});
         m_sandbox.run(s);
 
         // if nothing was installed, the upper layer has no package database
         // and the SDK has the runtime's packages
         const auto &runtime = output("runtime").manifest;
-        auto installed = m_system->installed_packages(sdk_dir("upper")).value_or(m_system->packages_of(runtime));
-        m_outputs.push_back({"sdk", sdk_dir("upper"), describe(true, installed, runtime.as_base())});
+        auto installed = m_system->installed_packages(upper("sdk")).value_or(m_system->packages_of(runtime));
+        m_outputs.push_back({"sdk", upper("sdk"), describe(true, installed, runtime.as_base())});
     }
 
     // --- stage 4: export ---------------------------------------------------
@@ -145,8 +140,8 @@ private:
         // Move sdk-only paths to the SDK instead of deleting them. The package
         // manager did not install them again in the SDK layer, so it would
         // lack them otherwise.
-        move_paths(s, rootfs(), "usr", ALWAYS_SDK_ONLY_DIRS, sdk_dir("upper"));
-        move_paths(s, rootfs(), "usr", m_recipe.sdk_only, sdk_dir("upper"));
+        move_paths(s, rootfs(), "usr", ALWAYS_SDK_ONLY_DIRS, upper("sdk"));
+        move_paths(s, rootfs(), "usr", m_recipe.sdk_only, upper("sdk"));
         m_sandbox.run(s);
     }
 

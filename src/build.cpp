@@ -275,9 +275,25 @@ void Build::install_packages(
     s.run({"umount", mountpoint.string()});
 }
 
-std::vector<std::string> Build::runtime_packages() const
+fs::path Build::upper(std::string_view layer) const
 {
-    return m_system->packages_request_runtime(m_recipe);
+    return m_work / layer / "upper";
+}
+
+fs::path Build::merged(std::string_view layer) const
+{
+    return m_work / layer / "merged";
+}
+
+void Build::mount_upper(Script &s, std::string_view layer, const std::vector<fs::path> &lowers) const
+{
+    mount_overlay(s, lowers, upper(layer), m_work / layer / "work", merged(layer));
+}
+
+void Build::unmount_upper(Script &s, std::string_view layer) const
+{
+    s.run({"umount", merged(layer).string()});
+    strip_overlay_markers(s, upper(layer));
 }
 
 void Build::run_actions(Script &s, Stage stage, const fs::path &tree) const

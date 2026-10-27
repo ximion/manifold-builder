@@ -101,9 +101,27 @@ protected:
         const;
 
     /**
-     * Get the packages the recipe puts into the runtime.
+     * Get the upper directory of an overlay layer of the build, which
+     * holds what the layer adds and becomes its image.
      */
-    std::vector<std::string> runtime_packages() const;
+    fs::path upper(std::string_view layer) const;
+
+    /**
+     * Get the mountpoint of an overlay layer of the build.
+     */
+    fs::path merged(std::string_view layer) const;
+
+    /**
+     * Mount the overlay of `layer` at merged(), with upper() over `lowers`
+     * (top-most first).
+     */
+    void mount_upper(Script &s, std::string_view layer, const std::vector<fs::path> &lowers) const;
+
+    /**
+     * Unmount the overlay of `layer`, and strip the overlay markers from its
+     * upper(), so it can be stacked on other layers.
+     */
+    void unmount_upper(Script &s, std::string_view layer) const;
 
     /**
      * Run the recipe's actions for one stage.
