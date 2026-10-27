@@ -5,7 +5,7 @@
  */
 
 #include "base-store.hpp"
-#include "identity.hpp"
+#include "checksum.hpp"
 #include "manifest.hpp"
 #include "testshared.hpp"
 

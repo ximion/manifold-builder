@@ -11,7 +11,7 @@
 #include "bundle.hpp"
 #include "cores/core-system.hpp"
 #include "error.hpp"
-#include "identity.hpp"
+#include "checksum.hpp"
 #include "image.hpp"
 #include "logging.hpp"
 #include "process.hpp"
@@ -693,11 +693,12 @@ fs::path Build::make_images()
         // add what we only know about the finished image to the sidecar manifest
         Manifest record = output.manifest;
         record.build.timestamp = utc_now();
+        auto checksums = checksum_file(raw);
         record.image = ImageFile{
             .file = raw.filename().string(),
             .size = fs::file_size(raw),
-            .blake3 = checksum_file_hex(raw, ChecksumKind::Blake3),
-            .sha256 = checksum_file_hex(raw, ChecksumKind::Sha256),
+            .blake3 = checksums.blake3,
+            .sha256 = checksums.sha256,
             .verity_root_hash = layout.root_hash,
             .data_offset = layout.data_offset,
             .data_size = layout.data_size,

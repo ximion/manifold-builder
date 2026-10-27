@@ -10,6 +10,7 @@ mfb_lib_sources = files(
     'buildsystems/meson.cpp',
     'buildsystems/simple.cpp',
     'bundle.cpp',
+    'checksum.cpp',
     'core-build.cpp',
     'cores/core-system.cpp',
     'cores/debian/debian.cpp',

@@ -18,24 +18,6 @@ namespace mfb
 {
 
 /**
- * A checksum algorithm.
- */
-enum class ChecksumKind {
-    Blake3,
-    Sha256,
-};
-
-/**
- * Compute the checksum of a string as lowercase hex.
- */
-std::string checksum_data_hex(std::string_view data, ChecksumKind kind);
-
-/**
- * Compute the checksum of a file's contents as lowercase hex.
- */
-std::string checksum_file_hex(const fs::path &path, ChecksumKind kind);
-
-/**
  * Compute the blake3 hash of a directory tree as lowercase hex.
  * Every copy of the tree hashes the same, regardless of timestamps or the
  * order in which the filesystem lists its entries.

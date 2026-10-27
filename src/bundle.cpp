@@ -7,7 +7,7 @@
 #include "bundle.hpp"
 
 #include "error.hpp"
-#include "identity.hpp"
+#include "checksum.hpp"
 #include "logging.hpp"
 #include "process.hpp"
 #include "utils.hpp"
@@ -200,13 +200,15 @@ void write_bundle(
     BundleIndex index;
     for (const auto &entry : entries) {
         archive.add_file(entry.name, entry.source, entry.uncompressed);
-        if (is_indexed(entry.name))
+        if (is_indexed(entry.name)) {
+            auto checksums = checksum_file(entry.source);
             index.files.push_back({
                 .name = entry.name,
                 .size = fs::file_size(entry.source),
-                .blake3 = checksum_file_hex(entry.source, ChecksumKind::Blake3),
-                .sha256 = checksum_file_hex(entry.source, ChecksumKind::Sha256),
+                .blake3 = checksums.blake3,
+                .sha256 = checksums.sha256,
             });
+        }
     }
 
     auto index_json = index_to_json(std::move(index));

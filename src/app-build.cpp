@@ -11,6 +11,7 @@
 #include "base-store.hpp"
 #include "cores/core-system.hpp"
 #include "error.hpp"
+#include "checksum.hpp"
 #include "identity.hpp"
 #include "logging.hpp"
 #include "sandbox.hpp"

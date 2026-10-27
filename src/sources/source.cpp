@@ -7,7 +7,7 @@
 #include "sources/source.hpp"
 
 #include "error.hpp"
-#include "identity.hpp"
+#include "checksum.hpp"
 #include "logging.hpp"
 #include "process.hpp"
 #include "sources/archive.hpp"
@@ -181,7 +181,9 @@ std::string source_file_name(const Source &source)
 
 SourceRecord file_record(const Source &source, const fs::path &file)
 {
-    SourceRecord record{.type = source.type, .sha256 = checksum_file_hex(file, ChecksumKind::Sha256)};
+    // obtain_file() checked the file against the source's own checksum
+    auto sha256 = source.sha256.empty() ? checksum_file_hex(file, ChecksumKind::Sha256) : source.sha256;
+    SourceRecord record{.type = source.type, .sha256 = sha256};
     if (!source.url.empty())
         record.url = source.url;
     else

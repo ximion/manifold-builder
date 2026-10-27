@@ -10,7 +10,6 @@
 #include <string>
 
 #include "utils.hpp"
-#include "identity.hpp"
 #include "manifest.hpp"
 
 namespace mfb

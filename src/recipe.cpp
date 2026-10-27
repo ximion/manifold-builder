@@ -9,7 +9,7 @@
 #include "buildsystems/buildsystem.hpp"
 #include "cores/core-system.hpp"
 #include "error.hpp"
-#include "identity.hpp"
+#include "checksum.hpp"
 #include "sources/source.hpp"
 
 #include <algorithm>

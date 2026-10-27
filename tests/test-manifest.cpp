@@ -5,6 +5,7 @@
  */
 
 #include "appstream.hpp"
+#include "checksum.hpp"
 #include "identity.hpp"
 #include "image.hpp"
 #include "manifest.hpp"
@@ -34,6 +35,16 @@ TEST_CASE("file and string hashes", "[hashes]")
     CHECK(
         image_uuid("af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262")
         == "af1349b9-f5f9-81a6-a040-4dea36dcc949");
+
+    // both at once, over more than one chunk
+    write_file(dir / "large", std::string(3 << 20, 'x'));
+    auto both = checksum_file(dir / "large");
+    CHECK(both.blake3 == checksum_file_hex(dir / "large", ChecksumKind::Blake3));
+    CHECK(both.sha256 == checksum_file_hex(dir / "large", ChecksumKind::Sha256));
+    CHECK(both.sha256 == checksum_data_hex(std::string(3 << 20, 'x'), ChecksumKind::Sha256));
+    // a directory is no empty file
+    CHECK_THROWS_AS(checksum_file(dir.path()), BuildError);
+    CHECK_THROWS_AS(checksum_file_hex(dir.path(), ChecksumKind::Sha256), BuildError);
 }
 
 TEST_CASE("identity and content hashes", "[hashes]")

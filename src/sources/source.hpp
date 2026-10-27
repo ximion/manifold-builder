@@ -112,7 +112,8 @@ fs::path obtain_file(const Source &source, const FetchContext &context);
 std::string source_file_name(const Source &source);
 
 /**
- * Create the build record of a source that is a single file.
+ * Create the build record of a source that is a single file, after
+ * obtain_file() located it.
  */
 SourceRecord file_record(const Source &source, const fs::path &file);
 

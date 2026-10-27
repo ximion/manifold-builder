@@ -5,7 +5,7 @@
  */
 
 #include "bundle.hpp"
-#include "identity.hpp"
+#include "checksum.hpp"
 #include "manifest.hpp"
 #include "process.hpp"
 #include "testshared.hpp"

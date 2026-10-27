@@ -7,7 +7,7 @@
 #include "sources/git.hpp"
 
 #include "error.hpp"
-#include "identity.hpp"
+#include "checksum.hpp"
 #include "logging.hpp"
 #include "process.hpp"
 
