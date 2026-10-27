@@ -24,14 +24,6 @@ namespace mfb
 class Script;
 
 /**
- * Package names mapped to their direct dependencies.
- *
- * We only use this to decide what goes into a runtime vs an sdk, so of a
- * group of alternatives we keep the first, and replace a virtual package by
- * its first provider.
- */
-
-/**
  * Interface to the software distribution that provides a core.
  *
  * A backend knows how to create the base tree, how to install packages into

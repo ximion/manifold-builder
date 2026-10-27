@@ -24,8 +24,7 @@ namespace
 /**
  * Build of a core. Each stage runs as one script in the namespace:
  *
- *   1. bootstrap: create the base tree at the archive state, and dump the
- *      dependency graph of the requested development packages
+ *   1. bootstrap: create the base tree at the archive state
  *   2. runtime: install the runtime packages, run the actions
  *   3. sdk: do the same for the SDK on an overlay over the runtime tree,
  *      whose upper directory becomes the SDK image, then build the parts
