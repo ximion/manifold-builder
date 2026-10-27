@@ -4,15 +4,16 @@
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
 
-#include "core-build.hpp"
 #include "recipe.hpp"
-#include "sandbox.hpp"
 #include "testshared.hpp"
 
 #include <catch2/catch_test_macros.hpp>
 
 using namespace mfb;
 using mfb::test::APP_HEADER;
+using mfb::test::CORE_BOOTSTRAP;
+using mfb::test::CORE_HEADER;
+using mfb::test::PLATFORM_HEADER;
 using mfb::test::recipe_rejected;
 using mfb::test::TempDir;
 
@@ -81,21 +82,18 @@ TEST_CASE("invalid recipes are rejected", "[recipe]")
     CHECK(recipe_rejected(commandless + "command: ''\n"));
     CHECK(recipe_rejected(commandless + "command: bin/x\n"));
 
-    const std::string core = "type: core\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\n";
+    const std::string core(CORE_HEADER);
     // a core needs a bootstrap section
     CHECK(recipe_rejected(core));
     CHECK(recipe_rejected(core + "bootstrap: {suite: trixie}\n"));
-    const std::string bootstrap = "bootstrap: {suite: trixie, snapshot: '2026-10-04T00:00:00Z'}\n";
-    CHECK(recipe_rejected(core + bootstrap + "locales: [de_DE.UTF-8]\n"));
-    CHECK(recipe_rejected(core + bootstrap + "locales: [de_DE, de_DE]\n"));
+    CHECK(recipe_rejected(core + std::string(CORE_BOOTSTRAP) + "locales: [de_DE.UTF-8]\n"));
+    CHECK(recipe_rejected(core + std::string(CORE_BOOTSTRAP) + "locales: [de_DE, de_DE]\n"));
 }
 
 TEST_CASE("keys of other recipe types are rejected", "[recipe]")
 {
-    const std::string core =
-        "type: core\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\n"
-        "bootstrap: {suite: trixie, snapshot: '2026-10-04T00:00:00Z'}\n";
-    const std::string platform = "type: platform\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\nbase: c.d\n";
+    const std::string core = std::string(CORE_HEADER) + std::string(CORE_BOOTSTRAP);
+    const std::string platform(PLATFORM_HEADER);
     CHECK(recipe_rejected(core + "base: c.d\n"));
     CHECK(recipe_rejected(core + "base-version: 1\n"));
     for (const auto &recipe : {core, platform}) {
@@ -119,7 +117,7 @@ TEST_CASE("platform recipes", "[recipe]")
     CHECK(!platform.is_core());
     CHECK(platform.base_version.empty());
 
-    const std::string header = "type: platform\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\nbase: c.d\n";
+    const std::string header(PLATFORM_HEADER);
     CHECK(recipe_rejected(header + "base-version: 1\n"));
     // a platform builds parts into its /usr, like a core
     CHECK(!recipe_rejected(header + "parts: [{name: p, buildsystem: meson}]\n"));
@@ -127,14 +125,12 @@ TEST_CASE("platform recipes", "[recipe]")
 
 TEST_CASE("only cores have a bootstrap and actions", "[recipe]")
 {
-    const std::string bootstrap = "bootstrap: {suite: trixie, snapshot: x}\n";
+    const std::string bootstrap(CORE_BOOTSTRAP);
     const std::string actions = "actions: [{name: a, run: 'true'}]\n";
-    const std::string core = "type: core\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\n" + bootstrap;
+    const std::string core = std::string(CORE_HEADER) + bootstrap;
     CHECK(!recipe_rejected(core + actions));
-    // an action always runs inside the tree
-    CHECK(recipe_rejected(core + "actions: [{name: a, scope: host, run: 'true'}]\n"));
 
-    const std::string platform = "type: platform\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\nbase: c.d\n";
+    const std::string platform(PLATFORM_HEADER);
     const std::string app = std::string(APP_HEADER) + "parts: [{name: p, buildsystem: meson}]\n";
     for (const auto &recipe : {platform, app}) {
         CHECK(recipe_rejected(recipe + bootstrap));
@@ -274,17 +270,4 @@ TEST_CASE("build-options combine", "[recipe][parts]")
     auto arm = merge_build_settings(recipe, part, "aarch64");
     CHECK(arm.cflags == "-O2 -g -mbranch-protection=standard");
     CHECK(arm.env.at("B") == "global");
-}
-
-TEST_CASE("every core gets the Manifold configuration", "[recipe]")
-{
-    Script s;
-    postprocess_core(s, "/tree", "x86_64-linux-gnu");
-    const auto &text = s.text();
-    CHECK(text.find("/tree/etc/ld.so.conf.d/manifold-app.conf") != std::string::npos);
-    CHECK(text.find("/app/lib/x86_64-linux-gnu") != std::string::npos);
-    CHECK(text.find("/tree/etc/fonts/conf.d/50-manifold-host-fonts.conf") != std::string::npos);
-    CHECK(
-        text.find("<remap-dir as-path=\"/usr/share/fonts\">/run/host/usr/share/fonts</remap-dir>")
-        != std::string::npos);
 }

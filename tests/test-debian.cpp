@@ -16,6 +16,7 @@
 
 using namespace mfb;
 using mfb::test::APP_HEADER;
+using mfb::test::CORE_HEADER;
 using mfb::test::TempDir;
 
 namespace
@@ -172,9 +173,9 @@ TEST_CASE("locales bring the packages that generate them", "[debian]")
     TempDir dir("locales");
     write_file(dir / "depends.txt", "");
     auto core = parse_recipe(
-        "type: core\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\n"
-        "bootstrap: {suite: trixie, snapshot: '2026-01-04T00:00:00Z'}\n"
-        "locales: [de_DE]\npackages: {apt: [fontconfig]}\n",
+        std::string(CORE_HEADER)
+            + "bootstrap: {suite: trixie, snapshot: '2026-01-04T00:00:00Z'}\n"
+              "locales: [de_DE]\npackages: {apt: [fontconfig]}\n",
         "inline");
     CHECK(
         trixie().packages_request_runtime(core, dir / "depends.txt")

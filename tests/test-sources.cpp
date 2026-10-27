@@ -11,9 +11,11 @@
 #include "testshared.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include <zip.h>
 
 using namespace mfb;
+using Catch::Matchers::ContainsSubstring;
 using mfb::test::TempDir;
 
 namespace
@@ -254,12 +256,11 @@ TEST_CASE("git sources", "[sources]")
         run_capture({.argv = {"git", "-C", (dir / "latest").string(), "remote", "get-url", "origin"}})
         == (dir / "repo").string());
 
-    Source mismatch{
-        .type = "git",
-        .url = (dir / "repo").string(),
-        .tag = "v1.0",
-        .commit = checksum_data_hex("x", ChecksumKind::Sha256).substr(0, 40)};
-    CHECK_THROWS_AS(fetch(mismatch, dir / "mismatch", dir), BuildError);
+    // a tag must point at the commit given with it
+    Source mismatch{.type = "git", .url = (dir / "repo").string(), .tag = "v1.0", .commit = latest.pin()};
+    CHECK_THROWS_WITH(
+        fetch(mismatch, dir / "mismatch", dir),
+        ContainsSubstring(std::format("tag v1.0 of {} is commit {}, not {}", mismatch.url, commit, latest.pin())));
 }
 
 TEST_CASE("every part gets a source directory, sources go to their dest", "[sources]")

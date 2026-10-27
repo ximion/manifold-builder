@@ -79,4 +79,20 @@ inline bool recipe_rejected(std::string_view yaml, const fs::path &dir = fs::cur
  */
 constexpr std::string_view APP_HEADER = "component: x.y\nversion: 1\nbase: c.d\nbase-version: 1\ncommand: x\n";
 
+/**
+ * Start of a core recipe, which still needs CORE_BOOTSTRAP to be valid.
+ */
+constexpr std::string_view CORE_HEADER = "type: core\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\n";
+
+/**
+ * A bootstrap section for CORE_HEADER.
+ */
+constexpr std::string_view CORE_BOOTSTRAP = "bootstrap: {suite: trixie, snapshot: '2026-10-04T00:00:00Z'}\n";
+
+/**
+ * Start of a valid platform recipe that tests append keys to.
+ */
+constexpr std::string_view PLATFORM_HEADER =
+    "type: platform\ncomponent: x.y\nversion: 1\nname: x\nsummary: x\nbase: c.d\n";
+
 } // namespace mfb::test

@@ -54,18 +54,18 @@ TEST_CASE("identity and content hashes", "[hashes]")
     InstalledPackages upgraded = {{"apt", "3.0.4"}, {"zlib1g", "1:1.3.1-1"}};
     InstalledPackages added = {{"apt", "3.0.3"}, {"bash", "5.2"}, {"zlib1g", "1:1.3.1-1"}};
 
-    auto identity = identity_hash("net.debian.core13", "amd64", packages);
-    CHECK(identity == identity_hash("net.debian.core13", "amd64", upgraded));
-    CHECK(identity != identity_hash("net.debian.core13", "amd64", added));
+    auto identity = identity_hash("net.debian.core13", "x86_64", packages);
+    CHECK(identity == identity_hash("net.debian.core13", "x86_64", upgraded));
+    CHECK(identity != identity_hash("net.debian.core13", "x86_64", added));
     CHECK(identity != identity_hash("net.debian.core13", "arm64", packages));
     CHECK(
         identity
         == checksum_data_hex(
-            "manifold-identity/1\nbase: net.debian.core13\narchitecture: amd64\napt\nzlib1g\n", ChecksumKind::Blake3));
+            "manifold-identity/1\nbase: net.debian.core13\narchitecture: x86_64\napt\nzlib1g\n", ChecksumKind::Blake3));
 
-    auto content = content_hash("net.debian.core13", "amd64", "net.debian.core13", "13.1", packages);
-    CHECK(content != content_hash("net.debian.core13", "amd64", "net.debian.core13", "13.1", upgraded));
-    CHECK(content != content_hash("net.debian.core13", "amd64", "net.debian.core13", "13.1", packages, {"recipe: x"}));
+    auto content = content_hash("net.debian.core13", "x86_64", "net.debian.core13", "13.1", packages);
+    CHECK(content != content_hash("net.debian.core13", "x86_64", "net.debian.core13", "13.1", upgraded));
+    CHECK(content != content_hash("net.debian.core13", "x86_64", "net.debian.core13", "13.1", packages, {"recipe: x"}));
 }
 
 TEST_CASE("directory tree hashes", "[hashes]")
@@ -163,9 +163,10 @@ TEST_CASE("generated MetaInfo validates", "[metainfo]")
     CHECK(xml.find("Second &lt;paragraph&gt;") != std::string::npos);
     // only the MetaInfo in the bundle names the image to install
     CHECK(xml.find("manifold.id") == std::string::npos);
-    for (const auto &problem : validate_metainfo(xml))
+    auto problems = validate_metainfo(xml);
+    for (const auto &problem : problems)
         UNSCOPED_INFO("validator: " << problem.text);
-    CHECK(validate_metainfo(xml).empty());
+    CHECK(problems.empty());
 
     MetaInfo runtime = sdk;
     runtime.id = "net.example.core";
@@ -173,9 +174,10 @@ TEST_CASE("generated MetaInfo validates", "[metainfo]")
     runtime.extends.clear();
     auto runtime_xml = generate_metainfo(runtime);
     CHECK(runtime_xml.find("type=\"runtime\"") != std::string::npos);
-    for (const auto &problem : validate_metainfo(runtime_xml))
+    auto runtime_problems = validate_metainfo(runtime_xml);
+    for (const auto &problem : runtime_problems)
         UNSCOPED_INFO("validator: " << problem.text);
-    CHECK(validate_metainfo(runtime_xml).empty());
+    CHECK(runtime_problems.empty());
 
     // an application needs a description, and should have a content rating
     const std::string app = R"(<?xml version="1.0" encoding="UTF-8"?>
