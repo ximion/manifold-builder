@@ -10,6 +10,7 @@
 #include "error.hpp"
 #include "logging.hpp"
 #include "process.hpp"
+#include "scopeguard.hpp"
 #include "utils.hpp"
 
 #include <glib.h>
@@ -204,6 +205,10 @@ void read_base_metainfo(Stack &stack)
         fail("Cannot create a temporary file: {}", error->message);
     close(fd);
     fs::path metainfo = tmp_name;
+    ScopeGuard remove_metainfo([&] {
+        std::error_code error;
+        fs::remove(metainfo, error);
+    });
 
     Command extract;
     extract.argv = {
@@ -219,7 +224,6 @@ void read_base_metainfo(Stack &stack)
     if (run_status(extract) != 0) {
         LOG_WARNING(
             logStore, "{} carries no MetaInfo - its kits will name no license or homepage", base.runtime.component);
-        fs::remove(metainfo);
         return;
     }
 
@@ -230,7 +234,6 @@ void read_base_metainfo(Stack &stack)
     } catch (const BuildError &e) {
         LOG_WARNING(logStore, "Can't read the MetaInfo of {}: {}", base.runtime.component, e.what());
     }
-    fs::remove(metainfo);
 }
 
 } // namespace

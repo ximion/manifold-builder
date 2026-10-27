@@ -10,6 +10,7 @@
 #include "checksum.hpp"
 #include "logging.hpp"
 #include "process.hpp"
+#include "scopeguard.hpp"
 #include "sources/archive.hpp"
 #include "sources/dir.hpp"
 #include "sources/file.hpp"
@@ -159,17 +160,17 @@ fs::path obtain_file(const Source &source, const FetchContext &context)
         partial.string(),
         source.url,
     };
-    try {
-        run({.argv = curl});
-        auto sha256 = checksum_file_hex(partial, ChecksumKind::Sha256);
-        if (sha256 != source.sha256)
-            fail("{} has sha256 {}, not {}", source.url, sha256, source.sha256);
-    } catch (...) {
+    // only a complete download that matches its checksum is kept
+    ScopeGuard remove_partial([&] {
         std::error_code error;
         fs::remove(partial, error);
-        throw;
-    }
+    });
+    run({.argv = curl});
+    auto sha256 = checksum_file_hex(partial, ChecksumKind::Sha256);
+    if (sha256 != source.sha256)
+        fail("{} has sha256 {}, not {}", source.url, sha256, source.sha256);
     fs::rename(partial, file);
+    remove_partial.dismiss();
     return file;
 }
 

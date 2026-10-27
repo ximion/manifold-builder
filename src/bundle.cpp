@@ -10,6 +10,7 @@
 #include "checksum.hpp"
 #include "logging.hpp"
 #include "process.hpp"
+#include "scopeguard.hpp"
 #include "utils.hpp"
 
 #include <glaze/glaze.hpp>
@@ -163,23 +164,16 @@ std::string sign_index(const std::string &index_json, const fs::path &key, const
         std::string(SIGN_NAMESPACE),
         index_file,
     };
-    auto remove_files = [&] {
+    ScopeGuard remove_files([&] {
         std::error_code error;
         fs::remove(index_file, error);
         fs::remove(signature_file, error);
-    };
+    });
 
     LOG_INFO(logBundle, "Signing with {}...", key.string());
-    try {
-        write_file(index_file, index_json);
-        run({.argv = sign});
-        auto signature = read_file(signature_file);
-        remove_files();
-        return signature;
-    } catch (...) {
-        remove_files();
-        throw;
-    }
+    write_file(index_file, index_json);
+    run({.argv = sign});
+    return read_file(signature_file);
 }
 
 } // namespace
