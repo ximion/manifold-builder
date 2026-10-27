@@ -15,6 +15,7 @@
 #include <zip.h>
 
 using namespace mfb;
+using Catch::Matchers::ContainsSubstring;
 using mfb::test::TempDir;
 
 namespace
@@ -106,10 +107,10 @@ TEST_CASE("bundles carry an index of their manifests and catalog", "[bundle]")
     REQUIRE(!index_json.empty());
     CHECK(zip_entry(bundle, "index.json.sig").empty());
     // images are not listed, their manifests are
-    CHECK(index_json.find("\"a.raw\"") == std::string::npos);
+    CHECK_THAT(index_json, !ContainsSubstring("\"a.raw\""));
     CHECK(index_json.find("\"a.manifold.json\"") < index_json.find("\"catalog/manifold-local.xml\""));
-    CHECK(index_json.find(checksum_file_hex(dir / "catalog.xml", ChecksumKind::Blake3)) != std::string::npos);
-    CHECK(index_json.find(checksum_file_hex(dir / "a.manifold.json", ChecksumKind::Sha256)) != std::string::npos);
+    CHECK_THAT(index_json, ContainsSubstring(checksum_file_hex(dir / "catalog.xml", ChecksumKind::Blake3)));
+    CHECK_THAT(index_json, ContainsSubstring(checksum_file_hex(dir / "a.manifold.json", ChecksumKind::Sha256)));
 
     // Manifold accepts the bundle, but not once the image changed
     CHECK_NOTHROW(verify_bundle(bundle));
@@ -156,8 +157,7 @@ TEST_CASE("a bundle that cannot be signed is written unsigned", "[bundle]")
     CHECK_NOTHROW(check_sign_key(dir / "key"));
     CHECK_THROWS_AS(check_sign_key(dir / "missing"), BuildError);
 
-    CHECK_THROWS_WITH(
-        make_test_bundle(dir.path(), dir / "key"), Catch::Matchers::ContainsSubstring("was written unsigned"));
+    CHECK_THROWS_WITH(make_test_bundle(dir.path(), dir / "key"), ContainsSubstring("was written unsigned"));
     auto bundle = dir / "a_1.manifold";
     CHECK_NOTHROW(verify_bundle(bundle));
     CHECK(zip_entry(bundle, "index.json.sig").empty());

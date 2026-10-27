@@ -19,6 +19,15 @@ namespace
 {
 
 /**
+ * Run a script directly and return its exit status. Scripts that are
+ * meant to fail run `quiet`.
+ */
+int run_script(const Script &s, bool quiet = false)
+{
+    return run_status({.argv = {"bash", "-c", s.text()}, .quiet = quiet});
+}
+
+/**
  * Run a script like Sandbox::run does, minus the namespace, and describe
  * its failure.
  */
@@ -105,7 +114,7 @@ TEST_CASE("overlay markers are removed from the marked directories", "[sandbox]"
 
     Script s;
     strip_overlay_markers(s, dir.path());
-    CHECK(run_status({.argv = {"bash", "-c", s.text()}}) == 0);
+    CHECK(run_script(s) == 0);
     CHECK(!marked(dir / "usr/lib", "user.overlay.opaque"));
     CHECK(!marked(dir / "with space", "user.overlay.opaque"));
     CHECK(marked(dir / "usr", "user.other"));
@@ -115,7 +124,7 @@ TEST_CASE("overlay markers are removed from the marked directories", "[sandbox]"
         fs::create_directories(dir / "locked");
         REQUIRE(mark(dir / "locked", "user.overlay.opaque"));
         fs::permissions(dir / "locked", fs::perms::owner_write, fs::perm_options::remove);
-        CHECK(run_status({.argv = {"bash", "-c", s.text()}, .quiet = true}) != 0);
+        CHECK(run_script(s, true) != 0);
         fs::permissions(dir / "locked", fs::perms::owner_write, fs::perm_options::add);
     }
 }
@@ -137,7 +146,7 @@ TEST_CASE("paths are moved to the SDK", "[sandbox]")
     move_paths(s, tree, "usr", {"include", "lib/*.so", "share/doc", "nothing/*"}, dir / "sdk");
     // the shell options and the directory are the script's own again
     s.line("! shopt -q globstar && ! shopt -q nullglob && [ \"$PWD\" = " + shell_quote(dir.path().string()) + " ]");
-    CHECK(run_status({.argv = {"bash", "-c", s.text()}}) == 0);
+    CHECK(run_script(s) == 0);
     CHECK(fs::exists(dir / "sdk/usr/include/foo/foo.h"));
     CHECK(fs::exists(dir / "sdk/usr/share/doc/foo/copyright"));
     CHECK(fs::is_symlink(dir / "sdk/usr/lib/libfoo.so"));
@@ -150,7 +159,7 @@ TEST_CASE("paths are moved to the SDK", "[sandbox]")
     write_file(dir / "file", "");
     Script t;
     move_paths(t, tree, "usr", {"include"}, dir / "file/sdk");
-    CHECK(run_status({.argv = {"bash", "-c", t.text()}, .quiet = true}) != 0);
+    CHECK(run_script(t, true) != 0);
     CHECK(fs::exists(tree / "usr/include"));
 }
 
@@ -168,7 +177,7 @@ TEST_CASE("the top directories of a stage go below /usr", "[sandbox]")
 
     Script s;
     merge_into_usr(s, dir.path());
-    CHECK(run_status({.argv = {"bash", "-c", s.text()}}) == 0);
+    CHECK(run_script(s) == 0);
     CHECK(fs::exists(dir / "usr/lib/udev/rules.d/60-foo.rules"));
     CHECK(fs::exists(dir / "usr/lib/udev/rules.d/50-bar.rules"));
     CHECK(fs::exists(dir / "usr/sbin/foo"));

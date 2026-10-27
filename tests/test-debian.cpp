@@ -12,12 +12,13 @@
 #include "testshared.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include <manifold.h>
 
 using namespace mfb;
+using Catch::Matchers::ContainsSubstring;
 using mfb::test::APP_HEADER;
 using mfb::test::CORE_HEADER;
-using mfb::test::TempDir;
 
 namespace
 {
@@ -64,18 +65,18 @@ TEST_CASE("the slim configuration keeps the catalogs of the locales", "[debian]"
     Script s;
     trixie().slimify(s, "/tree", {"de_DE", "pt_BR"});
     const auto &text = s.text();
-    CHECK(text.find("path-include /usr/share/locale/de/*") != std::string::npos);
-    CHECK(text.find("path-include /usr/share/locale/pt_BR/*") != std::string::npos);
-    CHECK(text.find("! -name de_DE") != std::string::npos);
-    CHECK(text.find("path-exclude /usr/share/man/*") != std::string::npos);
+    CHECK_THAT(text, ContainsSubstring("path-include /usr/share/locale/de/*"));
+    CHECK_THAT(text, ContainsSubstring("path-include /usr/share/locale/pt_BR/*"));
+    CHECK_THAT(text, ContainsSubstring("! -name de_DE"));
+    CHECK_THAT(text, ContainsSubstring("path-exclude /usr/share/man/*"));
 }
 
 TEST_CASE("commands in a tree run without questions", "[debian]")
 {
     Script s;
     trixie().run_in_tree(s, "/tree", "apt-get install -y foo");
-    CHECK(s.text().find("DEBIAN_FRONTEND=noninteractive") != std::string::npos);
-    CHECK(s.text().find("umask 022") != std::string::npos);
+    CHECK_THAT(s.text(), ContainsSubstring("DEBIAN_FRONTEND=noninteractive"));
+    CHECK_THAT(s.text(), ContainsSubstring("umask 022"));
 }
 
 TEST_CASE("package installs never remove packages and share their downloads", "[debian]")
@@ -83,10 +84,10 @@ TEST_CASE("package installs never remove packages and share their downloads", "[
     Script s;
     auto debian = trixie();
     debian.install(s, "/tree", {"foo"});
-    CHECK(s.text().find("--no-remove") != std::string::npos);
-    CHECK(s.text().find("Dir::Cache::Archives=/" + debian.package_cache_dir()) != std::string::npos);
+    CHECK_THAT(s.text(), ContainsSubstring("--no-remove"));
+    CHECK_THAT(s.text(), ContainsSubstring("Dir::Cache::Archives=/" + debian.package_cache_dir()));
     // the shared package cache belongs to us, not to apt's sandbox user
-    CHECK(s.text().find("APT::Sandbox::User=root") != std::string::npos);
+    CHECK_THAT(s.text(), ContainsSubstring("APT::Sandbox::User=root"));
     // debuerreotype empties apt's own archives directory after every dpkg run
     CHECK(debian.package_cache_dir() != "var/cache/apt/archives");
 }

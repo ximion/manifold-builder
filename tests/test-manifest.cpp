@@ -14,9 +14,27 @@
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_message.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 using namespace mfb;
+using Catch::Matchers::ContainsSubstring;
 using mfb::test::TempDir;
+
+namespace
+{
+
+/**
+ * Check that MetaInfo validates, and show what the validator found if not.
+ */
+void check_valid(const std::string &xml)
+{
+    auto problems = validate_metainfo(xml);
+    for (const auto &problem : problems)
+        UNSCOPED_INFO("validator: " << problem.text);
+    CHECK(problems.empty());
+}
+
+} // namespace
 
 TEST_CASE("file and string hashes", "[hashes]")
 {
@@ -125,12 +143,12 @@ TEST_CASE("manifests round-trip through JSON", "[manifest]")
     };
 
     auto json = to_json(manifest);
-    CHECK(json.find("\"content-hash\"") != std::string::npos);
-    CHECK(json.find("\"image\"") == std::string::npos);
-    CHECK(json.find("\"apt\": {") != std::string::npos);
+    CHECK_THAT(json, ContainsSubstring("\"content-hash\""));
+    CHECK_THAT(json, !ContainsSubstring("\"image\""));
+    CHECK_THAT(json, ContainsSubstring("\"apt\": {"));
     // a source only records the keys it has
-    CHECK(json.find("\"sha256\"") == std::string::npos);
-    CHECK(json.find("\"tree-hash\": \"abcd\"") != std::string::npos);
+    CHECK_THAT(json, !ContainsSubstring("\"sha256\""));
+    CHECK_THAT(json, ContainsSubstring("\"tree-hash\": \"abcd\""));
 
     auto back = manifest_from_json(json, "roundtrip");
     CHECK(back.component == manifest.component);
@@ -157,27 +175,21 @@ TEST_CASE("generated MetaInfo validates", "[metainfo]")
         .release_date = "2026-01-04",
     };
     auto xml = generate_metainfo(sdk);
-    CHECK(xml.find("type=\"addon\"") != std::string::npos);
-    CHECK(xml.find("<extends>net.example.core</extends>") != std::string::npos);
-    CHECK(xml.find("<p>First paragraph still first.</p>") != std::string::npos);
-    CHECK(xml.find("Second &lt;paragraph&gt;") != std::string::npos);
+    CHECK_THAT(xml, ContainsSubstring("type=\"addon\""));
+    CHECK_THAT(xml, ContainsSubstring("<extends>net.example.core</extends>"));
+    CHECK_THAT(xml, ContainsSubstring("<p>First paragraph still first.</p>"));
+    CHECK_THAT(xml, ContainsSubstring("Second &lt;paragraph&gt;"));
     // only the MetaInfo in the bundle names the image to install
-    CHECK(xml.find("manifold.id") == std::string::npos);
-    auto problems = validate_metainfo(xml);
-    for (const auto &problem : problems)
-        UNSCOPED_INFO("validator: " << problem.text);
-    CHECK(problems.empty());
+    CHECK_THAT(xml, !ContainsSubstring("manifold.id"));
+    check_valid(xml);
 
     MetaInfo runtime = sdk;
     runtime.id = "net.example.core";
     runtime.kind = "runtime";
     runtime.extends.clear();
     auto runtime_xml = generate_metainfo(runtime);
-    CHECK(runtime_xml.find("type=\"runtime\"") != std::string::npos);
-    auto runtime_problems = validate_metainfo(runtime_xml);
-    for (const auto &problem : runtime_problems)
-        UNSCOPED_INFO("validator: " << problem.text);
-    CHECK(runtime_problems.empty());
+    CHECK_THAT(runtime_xml, ContainsSubstring("type=\"runtime\""));
+    check_valid(runtime_xml);
 
     // an application needs a description, and should have a content rating
     const std::string app = R"(<?xml version="1.0" encoding="UTF-8"?>
@@ -246,14 +258,14 @@ TEST_CASE("MetaInfo of an image goes into the catalog of the bundle", "[metainfo
     auto catalog_file = catalog.write();
     CHECK(catalog_file == dir / "catalog/manifold-local.xml");
     auto xml = read_file(catalog_file);
-    CHECK(xml.find("<components ") != std::string::npos);
-    CHECK(xml.find("origin=\"manifold-local\"") != std::string::npos);
-    CHECK(xml.find("Beispielkern") != std::string::npos);
-    CHECK(xml.find("<value key=\"manifold.id\">x86_64/net.example.core/1.0</value>") != std::string::npos);
-    CHECK(xml.find("<icon type=\"cached\"") != std::string::npos);
+    CHECK_THAT(xml, ContainsSubstring("<components "));
+    CHECK_THAT(xml, ContainsSubstring("origin=\"manifold-local\""));
+    CHECK_THAT(xml, ContainsSubstring("Beispielkern"));
+    CHECK_THAT(xml, ContainsSubstring("<value key=\"manifold.id\">x86_64/net.example.core/1.0</value>"));
+    CHECK_THAT(xml, ContainsSubstring("<icon type=\"cached\""));
     CHECK(fs::is_regular_file(dir / "catalog/icons/64x64/net.example.core.jxl"));
-    CHECK(xml.find("org.example.tool") == std::string::npos);
-    CHECK(read_file(file).find("manifold.id") == std::string::npos);
+    CHECK_THAT(xml, !ContainsSubstring("org.example.tool"));
+    CHECK_THAT(read_file(file), !ContainsSubstring("manifold.id"));
 
     // the tree has to describe the image it belongs to
     CHECK_THROWS_AS(catalog.add_tree(tree, "/usr", "net.example.other", {}), BuildError);

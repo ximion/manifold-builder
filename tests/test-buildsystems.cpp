@@ -8,19 +8,16 @@
 #include "testshared.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 using namespace mfb;
+using Catch::Matchers::ContainsSubstring;
 
 namespace
 {
 
 const InstallTarget APP = {"/app", "lib"};
 const InstallTarget CORE = {"/usr", "lib/x86_64-linux-gnu"};
-
-bool contains(const std::string &text, std::string_view what)
-{
-    return text.find(what) != std::string::npos;
-}
 
 std::string script_for(
     const Part &part,
@@ -43,28 +40,31 @@ TEST_CASE("meson", "[buildsystems]")
 {
     Part part{.name = "x", .buildsystem = "meson", .config_opts = {"-Dfoo=bar"}, .make_args = {"-v"}};
     auto script = script_for(part, APP);
-    CHECK(contains(script, "meson setup _mfold-build --prefix=/app --libdir=lib --buildtype=release -Dfoo=bar"));
-    CHECK(contains(script, "ninja -C _mfold-build -j\"$MANIFOLD_BUILDER_N_JOBS\" -v\n"));
-    CHECK(contains(script, "ninja -C _mfold-build install\n"));
+    CHECK_THAT(
+        script, ContainsSubstring("meson setup _mfold-build --prefix=/app --libdir=lib --buildtype=release -Dfoo=bar"));
+    CHECK_THAT(script, ContainsSubstring("ninja -C _mfold-build -j\"$MANIFOLD_BUILDER_N_JOBS\" -v\n"));
+    CHECK_THAT(script, ContainsSubstring("ninja -C _mfold-build install\n"));
     // a core part keeps its libraries in the multiarch directory
-    CHECK(contains(script_for(part, CORE), "--prefix=/usr --libdir=lib/x86_64-linux-gnu"));
+    CHECK_THAT(script_for(part, CORE), ContainsSubstring("--prefix=/usr --libdir=lib/x86_64-linux-gnu"));
 }
 
 TEST_CASE("cmake", "[buildsystems]")
 {
     Part part{.name = "x", .buildsystem = "cmake", .config_opts = {"-DFOO=ON"}, .make_install_args = {"-v"}};
     auto script = script_for(part, APP);
-    CHECK(
-        contains(script, "cmake -S . -B _mfold-build -G Ninja -DCMAKE_INSTALL_PREFIX=/app -DCMAKE_INSTALL_LIBDIR=lib"));
-    CHECK(contains(script, "-DCMAKE_BUILD_TYPE=Release -DFOO=ON\n"));
-    CHECK(contains(script, "ninja -C _mfold-build -j\"$MANIFOLD_BUILDER_N_JOBS\"\n"));
-    CHECK(contains(script, "ninja -C _mfold-build install -v\n"));
+    CHECK_THAT(
+        script,
+        ContainsSubstring(
+            "cmake -S . -B _mfold-build -G Ninja -DCMAKE_INSTALL_PREFIX=/app -DCMAKE_INSTALL_LIBDIR=lib"));
+    CHECK_THAT(script, ContainsSubstring("-DCMAKE_BUILD_TYPE=Release -DFOO=ON\n"));
+    CHECK_THAT(script, ContainsSubstring("ninja -C _mfold-build -j\"$MANIFOLD_BUILDER_N_JOBS\"\n"));
+    CHECK_THAT(script, ContainsSubstring("ninja -C _mfold-build install -v\n"));
 
     part.buildsystem = "cmake-make";
     auto make = script_for(part, APP);
-    CHECK(contains(make, "-G 'Unix Makefiles'"));
-    CHECK(contains(make, "make -C _mfold-build -j\"$MANIFOLD_BUILDER_N_JOBS\"\n"));
-    CHECK(contains(make, "make -C _mfold-build install -v\n"));
+    CHECK_THAT(make, ContainsSubstring("-G 'Unix Makefiles'"));
+    CHECK_THAT(make, ContainsSubstring("make -C _mfold-build -j\"$MANIFOLD_BUILDER_N_JOBS\"\n"));
+    CHECK_THAT(make, ContainsSubstring("make -C _mfold-build install -v\n"));
 }
 
 TEST_CASE("autotools", "[buildsystems]")
@@ -73,12 +73,13 @@ TEST_CASE("autotools", "[buildsystems]")
     auto script = script_for(part, APP);
     // without a configure script or one that generates it, autoreconf does
     CHECK(script.starts_with("autoreconf -fi\n./configure --prefix=/app --libdir=/app/lib --disable-foo\n"));
-    CHECK(contains(script, "make -j\"$MANIFOLD_BUILDER_N_JOBS\"\n"));
-    CHECK(contains(script, "make install\n"));
+    CHECK_THAT(script, ContainsSubstring("make -j\"$MANIFOLD_BUILDER_N_JOBS\"\n"));
+    CHECK_THAT(script, ContainsSubstring("make install\n"));
     // with a /usr prefix, configuration goes to /etc
-    CHECK(contains(
+    CHECK_THAT(
         script_for(part, CORE),
-        "./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu --sysconfdir=/etc --localstatedir=/var"));
+        ContainsSubstring(
+            "./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu --sysconfdir=/etc --localstatedir=/var"));
 }
 
 TEST_CASE("autotools prefers the project's own configure script", "[buildsystems]")
@@ -111,14 +112,14 @@ TEST_CASE("the parts of a part's script", "[buildsystems]")
     BuildSettings settings{.config_opts = {"-Dglobal=true"}};
     auto script = script_for(part, APP, settings);
     // the caller runs the script in the subdir
-    CHECK(!contains(script, "sub dir"));
+    CHECK_THAT(script, !ContainsSubstring("sub dir"));
     // build-options come first, so that the part's own config-opts win
-    CHECK(contains(script, "-Dglobal=true -Dpart=true"));
+    CHECK_THAT(script, ContainsSubstring("-Dglobal=true -Dpart=true"));
     // build-commands run between building and installing, as in flatpak-builder
     CHECK(script.find("ninja -C _mfold-build -j") < script.find("echo between"));
     CHECK(script.find("echo between") < script.find("ninja -C _mfold-build install"));
     // the caller runs post-install
-    CHECK(!contains(script, "echo after"));
+    CHECK_THAT(script, !ContainsSubstring("echo after"));
 }
 
 TEST_CASE("unknown build systems", "[buildsystems]")

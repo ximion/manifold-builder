@@ -8,18 +8,19 @@
 #include "sandbox.hpp"
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 
 using namespace mfb;
+using Catch::Matchers::ContainsSubstring;
 
 TEST_CASE("every core gets the Manifold configuration", "[core]")
 {
     Script s;
     postprocess_core(s, "/tree", "x86_64-linux-gnu");
     const auto &text = s.text();
-    CHECK(text.find("/tree/etc/ld.so.conf.d/manifold-app.conf") != std::string::npos);
-    CHECK(text.find("/app/lib/x86_64-linux-gnu") != std::string::npos);
-    CHECK(text.find("/tree/etc/fonts/conf.d/50-manifold-host-fonts.conf") != std::string::npos);
-    CHECK(
-        text.find("<remap-dir as-path=\"/usr/share/fonts\">/run/host/usr/share/fonts</remap-dir>")
-        != std::string::npos);
+    CHECK_THAT(text, ContainsSubstring("/tree/etc/ld.so.conf.d/manifold-app.conf"));
+    CHECK_THAT(text, ContainsSubstring("/app/lib/x86_64-linux-gnu"));
+    CHECK_THAT(text, ContainsSubstring("/tree/etc/fonts/conf.d/50-manifold-host-fonts.conf"));
+    CHECK_THAT(
+        text, ContainsSubstring("<remap-dir as-path=\"/usr/share/fonts\">/run/host/usr/share/fonts</remap-dir>"));
 }
