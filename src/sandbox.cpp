@@ -11,7 +11,6 @@
 #include "process.hpp"
 #include "utils.hpp"
 
-#include <charconv>
 #include <ranges>
 
 namespace mfb
@@ -52,6 +51,11 @@ void Script::comment(std::string text)
 void Script::write_file(const fs::path &path, std::string_view content)
 {
     line(std::format("printf '%s' {} > {}", shell_quote(content), shell_quote(path.string())));
+}
+
+void Script::install_file(const fs::path &source, const fs::path &target)
+{
+    run({"install", "-D", "-m", "0644", source.string(), target.string()});
 }
 
 void Script::message(std::string_view text)
@@ -111,11 +115,9 @@ std::string describe_failure(const Script &script, std::string_view report, int 
             command = fields[i + 2];
             i += 3;
         } else if (fields[i] == "step" && i + 1 < fields.size()) {
-            auto text = fields[i + 1];
-            size_t index = 0;
-            auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), index);
-            bool valid = error == std::errc() && end == text.data() + text.size() && index < script.steps().size();
-            step = valid ? script.steps()[index] : "";
+            auto index = parse_int(fields[i + 1]);
+            bool valid = index && *index >= 0 && static_cast<size_t>(*index) < script.steps().size();
+            step = valid ? script.steps()[*index] : "";
             i += 2;
         } else {
             break;

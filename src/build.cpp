@@ -550,7 +550,7 @@ void Build::pack_outputs()
         auto source = place_metainfo(place, output);
         if (source.empty()) {
             source = generate_metainfo_file(output, placed);
-            place.run({"install", "-D", "-m", "0644", source.string(), tree_metainfo(output).string()});
+            place.install_file(source, tree_metainfo(output));
         }
         placed[output.manifest.component] = source;
     }
@@ -596,7 +596,7 @@ fs::path Build::place_metainfo(Script &s, const Output &output) const
             LOG_WARNING(logBuild, "{}: the recipe's metainfo-file replaces {}", id, image_path(output.tree, path));
             s.run({"rm", path.string()});
         }
-        s.run({"install", "-D", "-m", "0644", source.string(), target.string()});
+        s.install_file(source, target);
         return source;
     }
     if (shipped.empty())
@@ -685,7 +685,7 @@ void Build::install_manifest(Script &s, const Output &output) const
     auto root = output.manifest.kind == "app" ? output.tree / "app" : output.tree;
     auto json = m_work / (output.stem + ".manifold.json");
     write_manifest(output.manifest, json);
-    s.run({"install", "-D", "-m", "0644", json.string(), (root / "manifold.json").string()});
+    s.install_file(json, root / "manifold.json");
 }
 
 void Build::pack(Script &s, const Output &output) const

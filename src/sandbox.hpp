@@ -65,6 +65,12 @@ public:
     void write_file(const fs::path &path, std::string_view content);
 
     /**
+     * Append a command that copies the file `source` to `target` with mode
+     * 0644, creating the directories above it.
+     */
+    void install_file(const fs::path &source, const fs::path &target);
+
+    /**
      * Append a command that shows `text` on stderr.
      */
     void message(std::string_view text);
