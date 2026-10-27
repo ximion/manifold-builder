@@ -9,6 +9,9 @@
 #include "error.hpp"
 #include "utils.hpp"
 
+#include <ranges>
+#include <set>
+
 namespace mfb
 {
 
@@ -50,65 +53,25 @@ InstalledPackages read_dpkg_status(const fs::path &status_file)
     return parse_dpkg_status(read_file(status_file));
 }
 
-DependencyGraph parse_apt_cache_depends(std::string_view text)
+std::vector<std::string> parse_shlibs_depends(std::string_view text)
 {
-    // The format:
-    //
-    //   qt6-base-dev                     <- a package, at column 0
-    //     Depends: libqt6core6t64        <- one of its dependencies
-    //    |Depends: libgl-dev             <- first of a group of alternatives;
-    //     Depends: libgl1-mesa-dev          the last alternative has no bar
-    //     Depends: <libgl-dev>           <- a virtual package, followed by
-    //       libglvnd-dev                    the packages providing it
-    DependencyGraph graph;
-    std::string package;
-    bool skipping_alternatives = false;
-    bool expecting_provider = false;
-
+    // e.g. "shlibs:Depends=libc6 (>= 2.34), libfoo1 | libfoo1t64, libbar2:any"
+    constexpr std::string_view key = "shlibs:Depends=";
+    std::set<std::string> packages;
     for_each_line(text, [&](std::string_view line) {
-        if (line.empty())
+        if (!line.starts_with(key))
             return;
-
-        if (!std::isspace(static_cast<unsigned char>(line.front()))) {
-            package = std::string(trim(line));
-            graph[package];
-            skipping_alternatives = false;
-            expecting_provider = false;
-            return;
+        line.remove_prefix(key.size());
+        for (auto entry : std::views::split(line, ',')) {
+            // the first alternative will do, at any version
+            std::string_view dependency(entry.begin(), entry.end());
+            dependency = trim(dependency.substr(0, dependency.find_first_of("|(")));
+            dependency = dependency.substr(0, dependency.find(':'));
+            if (!dependency.empty())
+                packages.emplace(dependency);
         }
-
-        if (line.starts_with("    ")) {
-            // take the first provider of the virtual package above
-            if (expecting_provider) {
-                graph[package].push_back(std::string(trim(line)));
-                expecting_provider = false;
-            }
-            return;
-        }
-
-        bool alternative_follows = line.starts_with(" |");
-        auto colon = line.find(':');
-        if (colon == std::string_view::npos)
-            return;
-        std::string_view dependency = trim(line.substr(colon + 1));
-        expecting_provider = false;
-
-        if (skipping_alternatives) {
-            // we already took the first alternative of this group
-            skipping_alternatives = alternative_follows;
-            return;
-        }
-        skipping_alternatives = alternative_follows;
-
-        if (dependency.starts_with('<')) {
-            expecting_provider = true;
-            return;
-        }
-        if (!dependency.empty())
-            graph[package].push_back(std::string(dependency));
     });
-
-    return graph;
+    return {packages.begin(), packages.end()};
 }
 
 } // namespace mfb

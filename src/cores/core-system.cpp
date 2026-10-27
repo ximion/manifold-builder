@@ -10,6 +10,7 @@
 #include "error.hpp"
 #include "manifest.hpp"
 
+#include <algorithm>
 #include <fnmatch.h>
 #include <set>
 
@@ -47,59 +48,18 @@ void CoreSystem::set_packages(Manifest &manifest, InstalledPackages packages) co
     manifest.packages[package_system()] = std::move(packages);
 }
 
-bool CoreSystem::is_development_package(const Recipe &recipe, std::string_view package) const
+bool CoreSystem::is_development_package(std::string_view package) const
 {
     std::string name(package);
-    for (const auto &pattern : recipe.sdk_patterns.value_or(default_sdk_patterns())) {
-        if (fnmatch(pattern.c_str(), name.c_str(), 0) == 0)
-            return true;
-    }
-    return false;
+    return std::ranges::any_of(development_patterns(), [&](const std::string &pattern) {
+        return fnmatch(pattern.c_str(), name.c_str(), 0) == 0;
+    });
 }
 
-std::vector<std::string> CoreSystem::development_packages(const Recipe &recipe) const
+std::vector<std::string> CoreSystem::packages_request_runtime(const Recipe &recipe) const
 {
-    std::vector<std::string> result;
-    for (const auto &package : requested(recipe.packages)) {
-        if (is_development_package(recipe, package))
-            result.push_back(package);
-    }
-    return result;
-}
-
-std::vector<std::string> CoreSystem::packages_request_runtime(const Recipe &recipe, const fs::path &dependencies) const
-{
-    std::set<std::string> runtime;
-    auto listed_sdk = requested(recipe.packages_sdk);
-    std::set<std::string> sdk_only(listed_sdk.begin(), listed_sdk.end());
-
-    for (const auto &package : requested(recipe.packages)) {
-        if (!is_development_package(recipe, package))
-            runtime.insert(package);
-    }
-
-    auto development = development_packages(recipe);
-    if (!development.empty()) {
-        auto graph = read_dependencies(dependencies);
-        std::set<std::string> seen;
-        std::vector<std::string> queue = development;
-        while (!queue.empty()) {
-            auto package = std::move(queue.back());
-            queue.pop_back();
-            if (!seen.insert(package).second)
-                continue;
-            auto node = graph.find(package);
-            if (node == graph.end())
-                continue;
-            for (const auto &dependency : node->second) {
-                if (is_development_package(recipe, dependency))
-                    queue.push_back(dependency);
-                else if (!sdk_only.contains(dependency))
-                    runtime.insert(dependency);
-            }
-        }
-    }
-
+    auto listed = requested(recipe.packages);
+    std::set<std::string> runtime(listed.begin(), listed.end());
     if (!recipe.locales.empty()) {
         for (const auto &package : locale_packages())
             runtime.insert(package);

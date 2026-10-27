@@ -190,7 +190,7 @@ std::string DebianSystem::package_system() const
     return "apt";
 }
 
-std::vector<std::string> DebianSystem::default_sdk_patterns() const
+std::vector<std::string> DebianSystem::development_patterns() const
 {
     // old-style debug packages, and the automatic ones of the debug archive
     return {"*-dev", "*-doc", "*-dbg", "*-dbgsym"};
@@ -239,21 +239,47 @@ void DebianSystem::refresh(Script &s, const fs::path &tree) const
     apt_get(s, tree, {"update", "-qq"});
 }
 
-void DebianSystem::dump_dependencies(
-    Script &s,
-    const fs::path &tree,
-    const std::vector<std::string> &packages,
-    const fs::path &output) const
+void DebianSystem::find_linked_packages(Script &s, const fs::path &tree, const std::string &dir, const fs::path &output)
+    const
 {
-    std::vector<std::string> depends = {
-        script("debuerreotype-chroot"), tree.string(), "apt-cache", "depends", "--recurse", "--important"};
-    depends.insert(depends.end(), packages.begin(), packages.end());
-    s.line(std::format("{} > {}", shell_join(depends), shell_quote(output.string())));
+    // NOTE: dpkg-shlibdeps only runs in a source package, so it gets a
+    // minimal one. The libraries of the app itself belong to no package,
+    // and every file it analyzes would get a warning that it is not part
+    // of a package build.
+    auto scan = std::format(
+        R"sh(
+command -v dpkg-shlibdeps > /dev/null || {{ echo 'dpkg-shlibdeps is missing in the SDK, it comes with dpkg-dev' >&2; exit 1; }}
+cd "$(mktemp -d)"
+mkdir debian
+printf 'Source: manifold
+
+Package: manifold
+Architecture: any
+' > debian/control
+files=()
+while IFS= read -r -d '' file; do
+    magic=
+    IFS= read -r -n 4 -d '' magic < "$file" || true
+    if [ "$magic" = $'ELF' ]; then
+        files+=("$file")
+    fi
+done < <(find {0} -type f -print0)
+if [ ${{#files[@]}} -gt 0 ]; then
+    dpkg-shlibdeps -O --ignore-missing-info -l{0}/lib -l{0}/lib/{1} "${{files[@]}}" \
+        2> >(grep -v 'binaries to analyze should already be installed in their package' >&2)
+fi
+)sh",
+        dir,
+        multiarch());
+    std::vector<std::string> chroot = {
+        script("debuerreotype-chroot"), tree.string(), "bash", "-Eeuo", "pipefail", "-c", scan};
+    s.line(std::format("echo {} > {}", m_epoch, shell_quote((tree / "debuerreotype-epoch").string())));
+    s.line(std::format("{} > {}", shell_join(chroot), shell_quote(output.string())));
 }
 
-DependencyGraph DebianSystem::read_dependencies(const fs::path &dump) const
+std::vector<std::string> DebianSystem::read_linked_packages(const fs::path &output) const
 {
-    return parse_apt_cache_depends(read_file(dump));
+    return parse_shlibs_depends(read_file(output));
 }
 
 void DebianSystem::install(Script &s, const fs::path &tree, const std::vector<std::string> &packages) const

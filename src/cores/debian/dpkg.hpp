@@ -8,6 +8,7 @@
 
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "cores/core-system.hpp"
 #include "utils.hpp"
@@ -23,9 +24,9 @@ InstalledPackages read_dpkg_status(const fs::path &status_file);
 InstalledPackages parse_dpkg_status(std::string_view text);
 
 /**
- * Parse the dependency graph from the output of
- * `apt-cache depends --recurse --important`.
+ * Get the packages that the `shlibs:Depends` of dpkg-shlibdeps output names,
+ * the first alternative of each.
  */
-DependencyGraph parse_apt_cache_depends(std::string_view text);
+std::vector<std::string> parse_shlibs_depends(std::string_view text);
 
 } // namespace mfb

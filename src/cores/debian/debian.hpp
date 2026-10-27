@@ -67,7 +67,7 @@ public:
     std::string multiarch() const override;
     int64_t epoch() const override;
     std::string package_system() const override;
-    std::vector<std::string> default_sdk_patterns() const override;
+    std::vector<std::string> development_patterns() const override;
     std::vector<std::string> locale_packages() const override;
     void describe_core(BuildInfo &build) const override;
 
@@ -79,14 +79,11 @@ public:
     void refresh(Script &s, const fs::path &tree) const override;
 
     /**
-     * Dump the output of `apt-cache depends --recurse --important`.
+     * Run dpkg-shlibdeps over every ELF file below `dir`.
      */
-    void dump_dependencies(
-        Script &s,
-        const fs::path &tree,
-        const std::vector<std::string> &packages,
-        const fs::path &output) const override;
-    DependencyGraph read_dependencies(const fs::path &dump) const override;
+    void find_linked_packages(Script &s, const fs::path &tree, const std::string &dir, const fs::path &output)
+        const override;
+    std::vector<std::string> read_linked_packages(const fs::path &output) const override;
     void install(Script &s, const fs::path &tree, const std::vector<std::string> &packages) const override;
     void generate_locales(Script &s, const fs::path &tree, const std::vector<std::string> &locales) const override;
     void run_in_tree(Script &s, const fs::path &tree, const std::string &command) const override;

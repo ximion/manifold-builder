@@ -30,7 +30,6 @@ class Script;
  * group of alternatives we keep the first, and replace a virtual package by
  * its first provider.
  */
-using DependencyGraph = std::map<std::string, std::vector<std::string>>;
 
 /**
  * Interface to the software distribution that provides a core.
@@ -85,11 +84,11 @@ public:
 
     /**
      * Get the patterns that match the development packages of this
-     * distribution.
+     * distribution, e.g. "*-dev".
      *
-     * They apply to recipes that set no `sdk-patterns` of their own.
+     * We only use them to warn about such packages in a runtime.
      */
-    virtual std::vector<std::string> default_sdk_patterns() const = 0;
+    virtual std::vector<std::string> development_patterns() const = 0;
 
     /**
      * Get the packages a core needs to generate its locales.
@@ -116,18 +115,19 @@ public:
     virtual void refresh(Script &s, const fs::path &tree) const = 0;
 
     /**
-     * Write the dependency graph of `packages` to `output`.
+     * Find the packages that the programs and libraries below `dir` link
+     * against, and write them to `output` for read_linked_packages().
+     *
+     * `dir` is a path inside `tree`, the tree they were built in. Libraries
+     * below `dir` itself belong to no package and are left out.
      */
-    virtual void dump_dependencies(
-        Script &s,
-        const fs::path &tree,
-        const std::vector<std::string> &packages,
-        const fs::path &output) const = 0;
+    virtual void find_linked_packages(Script &s, const fs::path &tree, const std::string &dir, const fs::path &output)
+        const = 0;
 
     /**
-     * Read the dependency graph that dump_dependencies() wrote.
+     * Read the packages that find_linked_packages() found.
      */
-    virtual DependencyGraph read_dependencies(const fs::path &dump) const = 0;
+    virtual std::vector<std::string> read_linked_packages(const fs::path &output) const = 0;
 
     /**
      * Install packages and their dependencies into a tree.
@@ -214,26 +214,16 @@ public:
     void set_packages(Manifest &manifest, InstalledPackages packages) const;
 
     /**
-     * Check if a package matches the recipe's sdk-patterns, or the
-     * distribution's default ones.
+     * Check if a package looks like a development package of this
+     * distribution.
      */
-    bool is_development_package(const Recipe &recipe, std::string_view package) const;
+    bool is_development_package(std::string_view package) const;
 
     /**
-     * Get the packages listed under `packages` that go to the SDK.
+     * Get the packages to install into the runtime: those listed under
+     * `packages`, and those that generate a core's locales.
      */
-    std::vector<std::string> development_packages(const Recipe &recipe) const;
-
-    /**
-     * Get the packages to install into the runtime.
-     *
-     * These are the listed packages that are not development packages, the
-     * locale packages, and what the listed development packages depend on.
-     * We follow dependencies through further development packages, but never
-     * into anything listed under `packages-sdk`. `dependencies` is the file
-     * that dump_dependencies() wrote for the development packages.
-     */
-    std::vector<std::string> packages_request_runtime(const Recipe &recipe, const fs::path &dependencies) const;
+    std::vector<std::string> packages_request_runtime(const Recipe &recipe) const;
 
     /**
      * Get the packages to install into the SDK: everything listed under

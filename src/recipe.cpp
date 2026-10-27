@@ -167,8 +167,6 @@ struct glz::meta<mfb::Recipe> {
         &T::packages,
         "packages-sdk",
         &T::packages_sdk,
-        "sdk-patterns",
-        &T::sdk_patterns,
         "locales",
         &T::locales,
         "image",

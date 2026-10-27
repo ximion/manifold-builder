@@ -157,6 +157,14 @@ void Build::setup()
         require_tool(tool);
     m_system->check_tools();
     m_system->check_packages(m_recipe);
+    for (const auto &package : m_system->requested(m_recipe.packages)) {
+        if (m_system->is_development_package(package))
+            LOG_WARNING(
+                logBuild,
+                "{} is listed under 'packages', which go into the runtime; development packages belong under "
+                "'packages-sdk'",
+                package);
+    }
     check_source_tools(m_parts);
     if (m_options.sign_key)
         check_sign_key(*m_options.sign_key);
@@ -264,24 +272,9 @@ void Build::install_packages(
     s.run({"umount", mountpoint.string()});
 }
 
-fs::path Build::dependencies_dump() const
-{
-    return m_work / "sdk-depends.txt";
-}
-
-void Build::dump_development_dependencies(Script &s, const fs::path &tree) const
-{
-    auto development = m_system->development_packages(m_recipe);
-    if (development.empty())
-        return;
-    s.step("Resolving the development packages", [&] {
-        m_system->dump_dependencies(s, tree, development, dependencies_dump());
-    });
-}
-
 std::vector<std::string> Build::runtime_packages() const
 {
-    return m_system->packages_request_runtime(m_recipe, dependencies_dump());
+    return m_system->packages_request_runtime(m_recipe);
 }
 
 void Build::run_actions(Script &s, Stage stage, const fs::path &tree) const

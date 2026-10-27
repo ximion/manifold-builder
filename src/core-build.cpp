@@ -82,8 +82,6 @@ private:
         s.step("Bootstrapping the core", [&] {
             m_system->bootstrap(s, rootfs(), m_recipe);
         });
-        // the dependencies of requested development packages decide what goes into the runtime
-        dump_development_dependencies(s, rootfs());
         m_sandbox.run(s);
         check_merged_usr(rootfs());
     }

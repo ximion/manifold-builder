@@ -199,15 +199,8 @@ struct Recipe {
      */
     std::optional<BuildSettings> build_options;
     std::vector<PartEntry> parts;
-    PackageSet packages;
-    PackageSet packages_sdk;
-
-    /**
-     * Patterns that mark development packages. A package listed under
-     * `packages` that matches goes to the SDK, and its dependencies that do
-     * not match go to the runtime. The default depends on the distribution.
-     */
-    std::optional<std::vector<std::string>> sdk_patterns;
+    PackageSet packages;     ///< Packages of the runtime, kit or platform, which the SDK gets too
+    PackageSet packages_sdk; ///< Packages only the SDK gets
 
     /**
      * Locales a core generates as UTF-8 and keeps message catalogs for,

@@ -24,9 +24,10 @@ bootstrap:
 locales: [de_DE]
 
 packages:
-  apt: [libzstd-dev]
+  apt: [libzstd1]
 packages-sdk:
-  apt: [pkgconf]
+  # dpkg-dev finds the packages an app links against
+  apt: [libzstd-dev, pkgconf, dpkg-dev]
 
 actions:
   - name: marker
@@ -72,6 +73,8 @@ name: JPEG Platform
 summary: libjpeg on the test core
 base: com.example.testcore
 packages:
+  apt: [libjpeg62-turbo]
+packages-sdk:
   apt: [libjpeg62-turbo-dev]
 parts:
   - name: jpeg-data
@@ -148,7 +151,7 @@ def test_core(core):
     assert runtime['build']['suite'] == 'trixie'
     assert sdk['base']['content-hash'] == runtime['content-hash']
 
-    # the development package goes to the SDK, its library to the runtime
+    # the library goes to the runtime, its development package to the SDK
     apt = runtime['packages']['apt']
     assert 'libzstd1' in apt and 'libzstd-dev' not in apt
     assert 'libzstd-dev' in sdk['packages']['apt']

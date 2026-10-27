@@ -49,20 +49,24 @@ packages:
     - mesa-va-drivers
     - libvdpau1
     - mesa-vdpau-drivers
-    - libgl-dev
-    - libegl-dev
-    - libgles-dev
-    - libvulkan-dev
     - fontconfig
+    - libfontconfig1
     - shared-mime-info
-    - libfontconfig-dev
-    - libglib2.0-dev
-    - libgio-2.0-dev
-    - libicu-dev
+    - libglib2.0-0t64
+    - libicu76
 
 # Only needed for building. These go into the SDK image only, with all their dependencies.
 packages-sdk:
   apt:
+    # the development files of the libraries above
+    - libgl-dev
+    - libegl-dev
+    - libgles-dev
+    - libvulkan-dev
+    - libfontconfig-dev
+    - libglib2.0-dev
+    - libgio-2.0-dev
+    - libicu-dev
     - build-essential
     - meson
     - cmake

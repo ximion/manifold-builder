@@ -110,65 +110,33 @@ TEST_CASE("dpkg status files", "[debian]")
     CHECK(packages["zlib1g"] == "1:1.3.1-1");
 }
 
-TEST_CASE("apt-cache depends output", "[debian]")
+TEST_CASE("dpkg-shlibdeps output", "[debian]")
 {
-    auto graph = parse_apt_cache_depends(
-        "qt6-base-dev\n"
-        "  Depends: libqt6core6t64\n"
-        " |Depends: libgl-dev\n"
-        "  Depends: libgl1-mesa-dev\n"
-        "  Depends: <libvirtual>\n"
-        "    libprovider1\n"
-        "    libprovider2\n"
-        "  PreDepends: dpkg\n"
-        "libqt6core6t64\n"
-        "  Depends: libc6\n");
-    CHECK(graph["qt6-base-dev"] == std::vector<std::string>{"libqt6core6t64", "libgl-dev", "libprovider1", "dpkg"});
-    CHECK(graph["libqt6core6t64"] == std::vector<std::string>{"libc6"});
+    auto packages = parse_shlibs_depends(
+        "shlibs:Depends=libc6 (>= 2.34), libfoo1 (>= 1.2) | libfoo1t64, libbar2:any, libc6 (>= 2.38)\n");
+    CHECK(packages == std::vector<std::string>{"libbar2", "libc6", "libfoo1"});
+    // an app without any ELF file
+    CHECK(parse_shlibs_depends("").empty());
 }
 
-TEST_CASE("the runtime takes what the development packages depend on", "[debian]")
+TEST_CASE("packages go where the recipe lists them", "[debian]")
 {
-    TempDir dir("runtime-request");
-    write_file(
-        dir / "depends.txt",
-        "libfoo-dev\n"
-        "  Depends: libfoo1\n"
-        "  Depends: libbar-dev\n"
-        "  Depends: pkgconf\n"
-        "libbar-dev\n"
-        "  Depends: libbar2\n");
     auto recipe = parse_recipe(
         std::string(APP_HEADER)
-            + "packages: {apt: [libfoo-dev, fontconfig]}\n"
-              "packages-sdk: {apt: [pkgconf, meson]}\n"
+            + "packages: {apt: [libfoo1, fontconfig]}\n"
+              "packages-sdk: {apt: [libfoo-dev, meson]}\n"
               "parts: [{name: p, buildsystem: meson}]\n",
         "inline");
     auto debian = trixie();
-    CHECK(debian.development_packages(recipe) == std::vector<std::string>{"libfoo-dev"});
-    CHECK(
-        debian.packages_request_runtime(recipe, dir / "depends.txt")
-        == std::vector<std::string>{"fontconfig", "libbar2", "libfoo1"});
+    CHECK(debian.packages_request_runtime(recipe) == std::vector<std::string>{"fontconfig", "libfoo1"});
     CHECK(
         debian.packages_request_sdk(recipe)
-        == std::vector<std::string>{"fontconfig", "libfoo-dev", "meson", "pkgconf"});
-
-    // the recipe's own patterns replace the distribution's
-    auto own = parse_recipe(
-        std::string(APP_HEADER)
-            + "packages: {apt: [libfoo-dev, foo-tools]}\nsdk-patterns: ['*-tools']\n"
-              "parts: [{name: p, buildsystem: meson}]\n",
-        "inline");
-    CHECK(debian.development_packages(own) == std::vector<std::string>{"foo-tools"});
-
-    // debug symbols go to the SDK, both old-style and automatic ones
-    auto debug = parse_recipe(
-        std::string(APP_HEADER) + "packages: {apt: [libc6-dbg, libfoo1-dbgsym, fontconfig]}\n"
-                                  "parts: [{name: p, buildsystem: meson}]\n",
-        "inline");
-    CHECK(debian.is_development_package(debug, "libc6-dbg"));
-    CHECK(debian.is_development_package(debug, "libfoo1-dbgsym"));
-    CHECK(!debian.is_development_package(debug, "fontconfig"));
+        == std::vector<std::string>{"fontconfig", "libfoo-dev", "libfoo1", "meson"});
+    // the builder only warns about these in a runtime
+    CHECK(debian.is_development_package("libfoo-dev"));
+    CHECK(debian.is_development_package("libc6-dbg"));
+    CHECK(debian.is_development_package("libfoo1-dbgsym"));
+    CHECK(!debian.is_development_package("fontconfig"));
 
     // packages of a different package system are refused
     auto fedora = parse_recipe(
@@ -179,14 +147,10 @@ TEST_CASE("the runtime takes what the development packages depend on", "[debian]
 
 TEST_CASE("locales bring the packages that generate them", "[debian]")
 {
-    TempDir dir("locales");
-    write_file(dir / "depends.txt", "");
     auto core = parse_recipe(
         std::string(CORE_HEADER)
             + "bootstrap: {suite: trixie, snapshot: '2026-01-04T00:00:00Z'}\n"
               "locales: [de_DE]\npackages: {apt: [fontconfig]}\n",
         "inline");
-    CHECK(
-        trixie().packages_request_runtime(core, dir / "depends.txt")
-        == std::vector<std::string>{"fontconfig", "libc-l10n", "locales"});
+    CHECK(trixie().packages_request_runtime(core) == std::vector<std::string>{"fontconfig", "libc-l10n", "locales"});
 }

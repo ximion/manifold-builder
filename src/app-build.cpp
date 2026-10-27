@@ -16,6 +16,7 @@
 #include "logging.hpp"
 #include "sandbox.hpp"
 
+#include <algorithm>
 #include <ctime>
 
 namespace mfb
@@ -57,12 +58,15 @@ int64_t build_epoch()
  * stacked on the kit later, so we drop the files from it that the kit has
  * unchanged. It keeps its own copy of the package state.
  *
- * We build the parts on a read-only overlay of all these layers, with the app's
- * stage directory bind-mounted at /app. Installed files land there directly,
- * and writes anywhere else fail right away. The sdk-only paths of /app move to
- * the app SDK, or are dropped if there is none.
+ * We build the parts on a read-only overlay of the kit SDK and the layers
+ * below it, with the app's stage directory bind-mounted at /app. Installed
+ * files land there directly, and writes anywhere else fail right away. The
+ * kit comes last: it gets the recipe's packages and the ones the app links
+ * against. The sdk-only paths of /app move to the app SDK, or are dropped
+ * if there is none.
  *
- * A platform build only makes the first two layers, under the recipe's name.
+ * A platform build only makes the first two layers, under the recipe's name,
+ * and builds its parts after both.
  */
 class AppBuild : public Build
 {
@@ -93,11 +97,15 @@ private:
     {
         fetch_sources();
         install_sdk();
-        install_kit();
-        if (m_recipe.is_platform())
+        if (m_recipe.is_platform()) {
+            install_kit();
             build_platform();
-        else
+        } else {
+            // the kit gets what the app links against, so it comes last
             build_app();
+            scan_app();
+            install_kit();
+        }
         export_trees();
     }
 
@@ -209,7 +217,6 @@ private:
         Script s;
         mount_layers(s, "kit-sdk", sdk_lowers());
         m_system->refresh(s, merged("kit-sdk"));
-        dump_development_dependencies(s, merged("kit-sdk"));
         install_packages(s, merged("kit-sdk"), m_system->packages_request_sdk(m_recipe), "Installing SDK packages");
 
         // the kit goes between this layer and the lower SDKs, so it must not hide
@@ -229,6 +236,9 @@ private:
     {
         log::section_box("Kit Packages");
         auto packages = runtime_packages();
+        packages.insert(packages.end(), m_linked_packages.begin(), m_linked_packages.end());
+        std::ranges::sort(packages);
+        packages.erase(std::ranges::unique(packages).begin(), packages.end());
         LOG_INFO(logBuild, "Installing {} packages...", packages.size());
         Script s;
         mount_layers(s, "kit", runtime_lowers());
@@ -258,7 +268,7 @@ private:
         // layer only holds the /app and /run/build mountpoints
         auto mountpoints = m_work / "app" / "mountpoints";
         s.run({"mkdir", "-p", (mountpoints / "app").string(), (mountpoints / "run/build").string()});
-        mount_overlay(s, sdk_lowers({mountpoints, upper("kit-sdk"), upper("kit")}), merged("app"));
+        mount_overlay(s, sdk_lowers({mountpoints, upper("kit-sdk")}), merged("app"));
         s.run({"mkdir", "-p", (app_stage() / "app").string()});
 
         build_parts(s, merged("app"), {"/app", "lib"}, app_stage() / "app");
@@ -273,6 +283,32 @@ private:
         // a link may point below the runtime's /usr, which is not in the stage
         if (!fs::exists(fs::symlink_status(app_stage() / "app/bin" / m_recipe.command)))
             LOG_WARNING(logBuild, "Command '{}' was not installed to /app/bin", m_recipe.command);
+    }
+
+    /**
+     * Find the packages that the app links against, for the kit.
+     *
+     * We look in the tree the app was built in, with a throwaway upper layer
+     * for what the scan writes. The kit only needs what its base lacks.
+     */
+    void scan_app()
+    {
+        Script s;
+        mount_layers(s, "scan", sdk_lowers({app_stage(), upper("kit-sdk")}));
+        s.step("Finding the packages the app links against", [&] {
+            m_system->find_linked_packages(s, merged("scan"), "/app", m_work / "linked-packages.txt");
+        });
+        s.run({"umount", merged("scan").string()});
+        unmount_stack(s);
+        m_sandbox.run(s);
+
+        auto base = m_system->packages_of(m_stack.base().runtime);
+        for (auto &package : m_system->read_linked_packages(m_work / "linked-packages.txt")) {
+            if (!base.contains(package))
+                m_linked_packages.push_back(std::move(package));
+        }
+        if (!m_linked_packages.empty())
+            LOG_INFO(logBuild, "The app links against {}", join(m_linked_packages, ", "));
     }
 
     /**
@@ -414,6 +450,7 @@ private:
     Stack m_stack;
     InstalledPackages m_kit_packages;
     InstalledPackages m_sdk_packages;
+    std::vector<std::string> m_linked_packages; ///< Packages the app links against that its base lacks
 };
 
 } // namespace

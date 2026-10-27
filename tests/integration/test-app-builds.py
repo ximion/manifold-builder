@@ -105,7 +105,7 @@ command: mftestapp
 base: {core}
 base-version: "13"
 
-packages:
+packages-sdk:
   apt: [qt6-base-dev]
 
 parts:
@@ -179,6 +179,7 @@ def test_mftestapp(builder, tmp_path):
     recipe.write_text(MFTESTAPP_RECIPE.format(core=CORE))
     bundle = builder.build(recipe, tmp_path / 'mftestapp.manifold')
 
+    # the kit has what the app links against, found by the scan of /app
     kit = bundle.manifest('kit')
     assert 'libqt6core6t64' in kit['packages']['apt']
     assert not any(name.endswith('-dev') for name in kit['packages']['apt'])

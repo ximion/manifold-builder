@@ -100,15 +100,7 @@ protected:
         const;
 
     /**
-     * Add a step that dumps the dependencies of the recipe's development
-     * packages, as `tree` resolves them, if it has any. runtime_packages()
-     * reads the dump.
-     */
-    void dump_development_dependencies(Script &s, const fs::path &tree) const;
-
-    /**
-     * Get the packages a runtime needs: the recipe's own and those the
-     * recipe's development packages depend on.
+     * Get the packages the recipe puts into the runtime.
      */
     std::vector<std::string> runtime_packages() const;
 
@@ -221,7 +213,6 @@ private:
      * use any other directory that is not empty.
      */
     void prepare_work_dir();
-    fs::path dependencies_dump() const;
     std::vector<std::pair<std::string, std::string>> part_environment(
         const BuildSettings &settings,
         const InstallTarget &target) const;
