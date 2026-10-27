@@ -28,21 +28,21 @@ bool is_zip(const Source &source)
  */
 void move_stripped(const fs::path &from, const fs::path &to, int strip)
 {
-    // Collect all entries first. When we move entries out of a directory while
-    // reading it, it is unspecified what readdir() returns next.
-    std::vector<fs::directory_entry> entries(fs::recursive_directory_iterator(from), {});
-    for (const auto &entry : entries) {
-        auto relative = entry.path().lexically_relative(from);
+    // NOTE: list_tree() collects all entries before we move any. When we move
+    // entries out of a directory while reading it, it is unspecified what
+    // readdir() returns next.
+    for (const auto &relative : list_tree(from)) {
         if (std::distance(relative.begin(), relative.end()) <= strip)
             continue;
         fs::path stripped;
         for (auto component = std::next(relative.begin(), strip); component != relative.end(); ++component)
             stripped /= *component;
-        if (entry.is_directory() && !entry.is_symlink()) {
+        // only files move, so the directories are still there
+        if (fs::is_directory(fs::symlink_status(from / relative))) {
             fs::create_directories(to / stripped);
         } else {
             fs::create_directories((to / stripped).parent_path());
-            fs::rename(entry.path(), to / stripped);
+            fs::rename(from / relative, to / stripped);
         }
     }
 }

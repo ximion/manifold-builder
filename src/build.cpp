@@ -430,9 +430,9 @@ void Build::cleanup_stages() const
         auto prefix = part_stage(*part) / "usr";
         std::vector<std::string> files;
         if (fs::is_directory(prefix)) {
-            for (const auto &entry : fs::recursive_directory_iterator(prefix)) {
-                if (!entry.is_directory() || entry.is_symlink())
-                    files.push_back(entry.path().lexically_relative(prefix).string());
+            for (const auto &path : list_tree(prefix)) {
+                if (!fs::is_directory(fs::symlink_status(prefix / path)))
+                    files.push_back(path.string());
             }
         }
         cleanup_part(*part, prefix, files);
@@ -747,15 +747,12 @@ fs::path Build::make_images()
 
     // the catalog of all images, in a stable order; icons and media are compressed already
     auto catalog_dir = m_work / MF_BUNDLE_CATALOG_DIR;
-    std::vector<fs::path> catalog_files;
-    for (const auto &entry : fs::recursive_directory_iterator(catalog_dir)) {
-        if (entry.is_regular_file())
-            catalog_files.push_back(entry.path());
-    }
+    auto catalog_files = list_tree(catalog_dir);
     std::ranges::sort(catalog_files);
     for (const auto &file : catalog_files) {
-        auto name = (fs::path(MF_BUNDLE_CATALOG_DIR) / file.lexically_relative(catalog_dir)).string();
-        entries.push_back({name, file, file.extension() != ".xml"});
+        if (fs::is_regular_file(catalog_dir / file))
+            entries.push_back(
+                {(MF_BUNDLE_CATALOG_DIR / file).string(), catalog_dir / file, file.extension() != ".xml"});
     }
     write_bundle(m_output, entries, m_options.sign_key);
     verify_bundle(m_output);
