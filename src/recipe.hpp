@@ -37,10 +37,10 @@ using PackageSet = std::map<std::string, std::vector<std::string>>;
 struct Bootstrap {
     std::string distribution = "debian";
     std::string suite;
-    std::string architecture; /// Architecture in the dustro naming scheme, host arch if empty
-    std::string snapshot;     /// Timestamp of the archive state, anything date(1) accepts. Also the SOURCE_DATE_EPOCH
-    std::vector<std::string> exclude; /// Packages to leave out of the bootstrap.
-    bool slim = true; /// If true, drop documentation, manual pages and message catalogs (except for selected locale)
+    std::string architecture; ///< Architecture in the dustro naming scheme, host arch if empty
+    std::string snapshot;     ///< Timestamp of the archive state, anything date(1) accepts. Also the SOURCE_DATE_EPOCH
+    std::vector<std::string> exclude; ///< Packages to leave out of the bootstrap.
+    bool slim = true; ///< If true, drop documentation, manual pages and message catalogs (except for selected locale)
 };
 
 struct ImageSettings {
@@ -71,16 +71,19 @@ struct Action {
  */
 struct Source {
     std::string type;
-    std::string dest; /// Where the source goes, relative to the part's source directory.
+    std::string dest; ///< Where the source goes, relative to the part's source directory.
     std::string url;
-    std::string path; /// A local file or directory, relative to the file the part is written in.
+    std::string path; ///< A local file or directory, relative to the file the part is written in.
     std::string tag;
     std::string branch;
     std::string commit;
-    std::string sha256; /// Checksum of an archive, file or patch, required if it is downloaded.
-    int strip_components =
-        1; /// Number of leading path components to strip from archive members / from the file names in a patch.
-    std::string dest_filename; /// Name to store a file source under (its own name by default)
+    std::string sha256; ///< Checksum of an archive, file or patch, required if it is downloaded.
+    /**
+     * Number of leading path components to strip from archive members, or
+     * from the file names in a patch.
+     */
+    int strip_components = 1;
+    std::string dest_filename; ///< Name to store a file source under (its own name by default)
 };
 
 /**
@@ -119,14 +122,17 @@ using PartEntry = std::variant<std::string, Part>;
  */
 struct Part {
     std::string name;
-    std::string buildsystem; /// One of meson, cmake, cmake-make, autotools or simple
-    std::string subdir;      /// Subdirectory of the sources to build, instead of the top directory
+    std::string buildsystem; ///< One of meson, cmake, cmake-make, autotools or simple
+    std::string subdir;      ///< Subdirectory of the sources to build, instead of the top directory
     std::vector<std::string> config_opts;
     std::vector<std::string> make_args;
     std::vector<std::string> make_install_args;
-    std::vector<std::string>
-        build_commands; /// Shell commands to run after the build system built the part and before it installs it
-    std::vector<std::string> post_install; /// Shell commands to run after the part is installed
+    /**
+     * Shell commands to run after the build system built the part, and
+     * before it installs it.
+     */
+    std::vector<std::string> build_commands;
+    std::vector<std::string> post_install; ///< Shell commands to run after the part is installed
 
     /**
      * Files installed by this part to remove once all parts are built.
@@ -139,7 +145,7 @@ struct Part {
     std::vector<std::string> skip_arches;
     std::optional<BuildSettings> build_options;
     std::vector<Source> sources;
-    std::vector<PartEntry> parts; /// Parts built before this one, in this order
+    std::vector<PartEntry> parts; ///< Parts built before this one, in this order
 
     /**
      * Directory of the file that defines this part. Local sources are
@@ -155,7 +161,7 @@ struct Part {
 };
 
 struct Recipe {
-    std::string type = "app"; /// "core", "platform" or "app"
+    std::string type = "app"; ///< "core", "platform" or "app"
     std::string component;
     std::string version;
 
@@ -168,7 +174,7 @@ struct Recipe {
     // for the generated AppStream MetaInfo of cores and platforms
     std::string name;
     std::string summary;
-    std::string description; /// Plain text, with blank lines between paragraphs
+    std::string description; ///< Plain text, with blank lines between paragraphs
     std::string project_license;
     std::string metadata_license = "FSFAP";
     std::string homepage;
@@ -178,18 +184,20 @@ struct Recipe {
     std::vector<Action> actions;
 
     // app and platform
-    std::string base; /// The layer below: a core or platform for apps, a core for platforms
+    std::string base; ///< The layer below: a core or platform for apps, a core for platforms
 
     // app
-    std::string command;      /// Program in /app/bin or the PATH to run, by its name
-    std::string base_version; /// Oldest base version an app accepts. Platforms are built on the current core.
-    std::string kit_strategy = "roaming"; /// How the application relates to its kit: "roaming" or "strict"
+    std::string command;      ///< Program in /app/bin or the PATH to run, by its name
+    std::string base_version; ///< Oldest base version an app accepts. Platforms are built on the current core.
+    std::string kit_strategy = "roaming"; ///< How the application relates to its kit: "roaming" or "strict"
     bool generate_sdk = false;
     bool run_on_sdk = false;
 
     // common
-    std::optional<BuildSettings>
-        build_options; /// Build options for every part, a part's own build-options apply on top.
+    /**
+     * Build options for every part. A part's own build-options apply on top.
+     */
+    std::optional<BuildSettings> build_options;
     std::vector<PartEntry> parts;
     PackageSet packages;
     PackageSet packages_sdk;

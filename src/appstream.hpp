@@ -23,16 +23,16 @@ namespace mfb
  */
 struct MetaInfo {
     std::string id;
-    std::string kind;    /// "runtime" or "addon"
-    std::string extends; /// The component-ID of a component an addon extends
+    std::string kind;    ///< "runtime" or "addon"
+    std::string extends; ///< The component-ID of a component an addon extends
     std::string name;
     std::string summary;
-    std::string description; /// Plain text, with blank lines between paragraphs
+    std::string description; ///< Plain text, with blank lines between paragraphs
     std::string project_license;
     std::string metadata_license;
     std::string homepage;
     std::string version;
-    std::string release_date; /// ISO 8601 date of the latest release
+    std::string release_date; ///< ISO 8601 date of the latest release
 };
 
 /**
@@ -44,7 +44,7 @@ std::string generate_metainfo(const MetaInfo &info);
  * A problem the AppStream validator found in MetaInfo XML.
  */
 struct MetaInfoIssue {
-    bool error; /// An error, not only a warning
+    bool error; ///< An error, not only a warning
     std::string text;
 };
 

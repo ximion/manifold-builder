@@ -27,12 +27,12 @@ struct InstallTarget;
 struct MetaInfo;
 
 struct BuildOptions {
-    std::optional<fs::path> output;   /// The bundle filename to write
-    std::optional<fs::path> sign_key; /// SSH key to sign the bundle's index with
-    std::optional<fs::path> work_dir; /// Scratch directory. Defaults to _build-<recipe name> beside the recipe
+    std::optional<fs::path> output;   ///< The bundle filename to write
+    std::optional<fs::path> sign_key; ///< SSH key to sign the bundle's index with
+    std::optional<fs::path> work_dir; ///< Scratch directory. Defaults to _build-<recipe name> beside the recipe
     bool keep_work = false;
-    std::optional<fs::path> cache_dir; /// Where downloads, git mirrors and packages are kept for later builds
-    unsigned jobs = 0;                 /// Parallel jobs of a part build, one per CPU if 0
+    std::optional<fs::path> cache_dir; ///< Where downloads, git mirrors and packages are kept for later builds
+    unsigned jobs = 0;                 ///< Parallel jobs of a part build, one per CPU if 0
 
     /**
      * Location of the layers that app and platform builds are based on.
@@ -46,8 +46,8 @@ struct BuildOptions {
  * One of the images a build produces.
  */
 struct Output {
-    std::string stem; /// Name stem of its files in the work directory (runtime, sdk, kit, kit-sdk, app or app-sdk)
-    fs::path tree;    /// Tree the image is made from
+    std::string stem; ///< Name stem of its files in the work directory (runtime, sdk, kit, kit-sdk, app or app-sdk)
+    fs::path tree;    ///< Tree the image is made from
     Manifest manifest;
 };
 
@@ -200,13 +200,13 @@ protected:
 
     // set up by run() after prepare()
     int64_t m_epoch = 0;
-    std::string m_architecture;        /// Manifold name of the architecture, as used in manifests
-    std::vector<const Part *> m_parts; /// Parts to build on this architecture, in order
+    std::string m_architecture;        ///< Manifold name of the architecture, as used in manifests
+    std::vector<const Part *> m_parts; ///< Parts to build on this architecture, in order
     BuildInfo m_build_info;
     fs::path m_output;
     fs::path m_work;
-    fs::path m_cache;     /// Downloads, git mirrors and packages, in the work dir without a cache
-    int m_work_lock = -1; /// Locked descriptor of m_work, so builds can not share it
+    fs::path m_cache;     ///< Downloads, git mirrors and packages, in the work dir without a cache
+    int m_work_lock = -1; ///< Locked descriptor of m_work, so builds can not share it
     Sandbox m_sandbox;
 
     std::vector<SourceRecord> m_sources;

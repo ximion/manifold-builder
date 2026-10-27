@@ -23,9 +23,9 @@ constexpr std::string_view SIGNATURE_NAME = "index.json.sig";
 constexpr std::string_view SIGN_NAMESPACE = "manifold-bundle";
 
 struct BundleEntry {
-    std::string name; /// Name inside the archive
+    std::string name; ///< Name inside the archive
     fs::path source;
-    bool uncompressed = false; /// Store without compression, for images that are compressed already
+    bool uncompressed = false; ///< Store without compression, for images that are compressed already
 };
 
 struct IndexEntry {

@@ -32,7 +32,7 @@ struct LayerImages {
 struct Stack {
     LayerImages core;
     std::optional<LayerImages> platform;
-    std::string project_license; /// from the base's MetaInfo, for the kits built on it
+    std::string project_license; ///< from the base's MetaInfo, for the kits built on it
     std::string homepage;
 
     const LayerImages &base() const

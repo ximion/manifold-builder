@@ -29,7 +29,7 @@ struct Command {
     std::vector<std::string> argv;
     std::map<std::string, std::string> env;
     std::optional<fs::path> cwd;
-    bool quiet = false; /// Discard what the command writes to stderr
+    bool quiet = false; ///< Discard what the command writes to stderr
 };
 
 /**

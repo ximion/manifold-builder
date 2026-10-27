@@ -41,13 +41,13 @@ struct BuildInfo {
      * because inside the image it would make identical builds differ.
      */
     std::optional<std::string> timestamp;
-    int64_t source_date_epoch = 0; /// SOURCE_DATE_EPOCH of the build, the archive snapshot time for cores
+    int64_t source_date_epoch = 0; ///< SOURCE_DATE_EPOCH of the build, the archive snapshot time for cores
 
-    std::optional<std::string> distribution; /// Only set for cores
+    std::optional<std::string> distribution; ///< Only set for cores
     std::optional<std::string> suite;
     std::optional<std::string> snapshot_url;
 
-    std::optional<std::string> recipe_hash; /// Recipe::hash, apps only (part of their content hash)
+    std::optional<std::string> recipe_hash; ///< Recipe::hash, apps only (part of their content hash)
     std::string builder;
     std::map<std::string, std::string> tools;
 };
@@ -92,10 +92,10 @@ struct SourceRecord {
     std::string part;
     std::string type;
     std::optional<std::string> url;
-    std::optional<std::string> path; /// A local file or directory, as the recipe names it
+    std::optional<std::string> path; ///< A local file or directory, as the recipe names it
     std::optional<std::string> commit;
-    std::optional<std::string> sha256;    /// Checksum of a file, archive or patch
-    std::optional<std::string> tree_hash; /// tree_hash() of a directory
+    std::optional<std::string> sha256;    ///< Checksum of a file, archive or patch
+    std::optional<std::string> tree_hash; ///< tree_hash() of a directory
 
     /**
      * Get the commit or checksum that pins the source.
@@ -113,9 +113,9 @@ struct SourceRecord {
 struct Manifest {
     int format = 1;
     std::string component;
-    std::string kind;     /// "core", "platform", "kit", "app" or "plugin"
-    std::string version;  /// Version from the recipe. A kit takes the version of its base.
-    int64_t revision = 0; /// Revision of this version: Set either by the repo, or at build-time
+    std::string kind;     ///< "core", "platform", "kit", "app" or "plugin"
+    std::string version;  ///< Version from the recipe. A kit takes the version of its base.
+    int64_t revision = 0; ///< Revision of this version: Set either by the repo, or at build-time
     std::string architecture;
     bool sdk = false;
 
@@ -133,7 +133,7 @@ struct Manifest {
 
     std::optional<BaseRef> base;
     BuildInfo build;
-    std::map<std::string, InstalledPackages> packages; /// By package system ("apt"): name -> version.
+    std::map<std::string, InstalledPackages> packages; ///< By package system ("apt"): name -> version.
     std::optional<AppInfo> app;
     std::optional<std::vector<SourceRecord>> sources;
     std::optional<ImageFile> image;

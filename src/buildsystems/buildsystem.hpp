@@ -51,7 +51,7 @@ public:
      * @param target the install target we install into
      * @param config_opts holds the config-opts from build-options, followed by the the part's own
      * @param source_dir the directory the build runs in, as the host sees it.
-     * @return
+     * @return the shell lines
      */
     virtual std::string build(
         const Part &part,

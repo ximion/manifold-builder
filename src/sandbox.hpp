@@ -175,12 +175,12 @@ struct PartBuild {
     fs::path root;
     fs::path sources;
     std::string name;
-    std::string subdir;                                   // of the sources, to build in
-    int64_t epoch = 0;                                    // SOURCE_DATE_EPOCH
-    std::vector<std::pair<fs::path, std::string>> binds;  // host path, path inside
-    std::vector<std::pair<std::string, std::string>> env; // after the defaults, so they win
+    std::string subdir;                                   ///< of the sources, to build in
+    int64_t epoch = 0;                                    ///< SOURCE_DATE_EPOCH
+    std::vector<std::pair<fs::path, std::string>> binds;  ///< host path, path inside
+    std::vector<std::pair<std::string, std::string>> env; ///< after the defaults, so they win
     std::string script;
-    fs::path script_file; // where we write the script for the sandbox to run
+    fs::path script_file; ///< where we write the script for the sandbox to run
 };
 
 /**
@@ -216,7 +216,7 @@ struct Sandbox {
     static void check_available();
 
 private:
-    unsigned m_scripts = 0; // run so far
+    unsigned m_scripts = 0; ///< run so far
 };
 
 } // namespace mfb
