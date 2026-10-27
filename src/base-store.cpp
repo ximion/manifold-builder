@@ -6,12 +6,12 @@
 
 #include "base-store.hpp"
 
+#include "appstream.hpp"
 #include "error.hpp"
 #include "logging.hpp"
 #include "process.hpp"
 #include "utils.hpp"
 
-#include <appstream.h>
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <manifold.h>
@@ -223,16 +223,12 @@ void read_base_metainfo(Stack &stack)
         return;
     }
 
-    g_autoptr(AsMetadata) metadata = as_metadata_new();
-    g_autoptr(GFile) file = g_file_new_for_path(metainfo.c_str());
-    if (as_metadata_parse_file(metadata, file, AS_FORMAT_KIND_XML, &error)) {
-        AsComponent *cpt = as_metadata_get_component(metadata);
-        if (const gchar *license = as_component_get_project_license(cpt))
-            stack.project_license = license;
-        if (const gchar *homepage = as_component_get_url(cpt, AS_URL_KIND_HOMEPAGE))
-            stack.homepage = homepage;
-    } else {
-        LOG_WARNING(logStore, "Can't read the MetaInfo of {}: {}", base.runtime.component, error->message);
+    try {
+        auto info = parse_metainfo(read_file(metainfo));
+        stack.project_license = info.project_license;
+        stack.homepage = info.homepage;
+    } catch (const BuildError &e) {
+        LOG_WARNING(logStore, "Can't read the MetaInfo of {}: {}", base.runtime.component, e.what());
     }
     fs::remove(metainfo);
 }

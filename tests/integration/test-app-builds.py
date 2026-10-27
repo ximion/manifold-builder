@@ -240,3 +240,32 @@ def test_malformed_source_date_epoch(builder, hello_recipe, tmp_path, monkeypatc
     )
     assert result.returncode == 1
     assert "SOURCE_DATE_EPOCH must be a number of seconds since 1970, not '123abc'" in result.stdout
+
+
+BROKEN_METAINFO = '''\
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.example.Broken</id>
+  <name>Broken</name>
+  <summary>Has no description</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+</component>
+'''
+
+
+def test_invalid_metainfo_file(builder, tmp_path):
+    (tmp_path / 'broken.metainfo.xml').write_text(BROKEN_METAINFO)
+    recipe = tmp_path / 'com.example.Broken.yaml'
+    recipe.write_text(
+        f'component: com.example.Broken\nversion: 1\ncommand: broken\nbase: {CORE}\nbase-version: "13"\n'
+        'metainfo-file: broken.metainfo.xml\n'
+        'parts: [{name: p, buildsystem: simple, build-commands: ["true"]}]\n'
+    )
+    result = builder.run(
+        'build', '--output', str(tmp_path / 'broken.manifold'), str(recipe), cwd=tmp_path
+    )
+    # an error in the recipe's MetaInfo fails the build before anything is built
+    assert result.returncode == 1
+    assert 'is not valid MetaInfo: app-description-required' in result.stdout
+    assert 'Building part' not in result.stdout

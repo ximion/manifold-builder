@@ -97,6 +97,23 @@ std::string image_path(const fs::path &tree, const fs::path &path)
     return "/" + path.lexically_relative(tree).string();
 }
 
+/**
+ * Fail if there are any reported errors for this MetaInfo file, and warn about any
+ * other problems. `name` is the location of the file, for output logs.
+ */
+void check_metainfo(const fs::path &file, const std::string &name)
+{
+    std::vector<std::string> errors;
+    for (const auto &issue : validate_metainfo(read_file(file))) {
+        if (issue.error)
+            errors.push_back(issue.text);
+        else
+            LOG_WARNING(logBuild, "{}: {}", name, issue.text);
+    }
+    if (!errors.empty())
+        fail("{} is not valid MetaInfo: {}", name, join(errors, ", "));
+}
+
 } // namespace
 
 Build::Build(const Recipe &recipe, const fs::path &recipe_file, const BuildOptions &options)
@@ -143,6 +160,10 @@ void Build::setup()
     check_source_tools(m_parts);
     if (m_options.sign_key)
         check_sign_key(*m_options.sign_key);
+    if (m_recipe.metainfo_file) {
+        auto file = m_recipe_dir / *m_recipe.metainfo_file;
+        check_metainfo(file, file.string());
+    }
     Sandbox::check_available();
 
     m_build_info.source_date_epoch = m_epoch;
@@ -570,6 +591,7 @@ fs::path Build::place_metainfo(Script &s, const Output &output) const
         return {};
 
     auto source = shipped.front();
+    check_metainfo(source, std::format("{} {}", id, image_path(output.tree, source)));
     for (const auto &path : shipped | std::views::drop(1)) {
         LOG_WARNING(
             logBuild,

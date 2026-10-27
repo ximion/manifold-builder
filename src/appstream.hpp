@@ -41,10 +41,18 @@ struct MetaInfo {
 std::string generate_metainfo(const MetaInfo &info);
 
 /**
- * Validate MetaInfo XML.
- * Returns one line per problem, nothing if the data is valid.
+ * A problem the AppStream validator found in MetaInfo XML.
  */
-std::vector<std::string> validate_metainfo(const std::string &xml);
+struct MetaInfoIssue {
+    bool error; /// An error, not only a warning
+    std::string text;
+};
+
+/**
+ * Validate MetaInfo XML.
+ * Returns its errors and warnings, nothing if the data is valid.
+ */
+std::vector<MetaInfoIssue> validate_metainfo(const std::string &xml);
 
 /**
  * Read the data of a component from MetaInfo XML.
@@ -90,11 +98,6 @@ public:
      * Write the catalog XML and return its path.
      */
     fs::path write() const;
-
-    const fs::path &dir() const
-    {
-        return m_dir;
-    }
 
 private:
     fs::path m_dir;

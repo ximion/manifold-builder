@@ -231,14 +231,14 @@ std::map<std::string, std::string> manifold_custom(
     return {{"manifold.id", std::format("{}/{}/{}", architecture, component, version)}};
 }
 
-std::vector<std::string> validate_metainfo(const std::string &xml)
+std::vector<MetaInfoIssue> validate_metainfo(const std::string &xml)
 {
     g_autoptr(AsValidator) validator = as_validator_new();
     as_validator_set_allow_net(validator, FALSE);
     if (as_validator_validate_data(validator, xml.c_str()))
         return {};
 
-    std::vector<std::string> problems;
+    std::vector<MetaInfoIssue> problems;
     g_autoptr(GList) issues = as_validator_get_issues(validator);
     for (GList *node = issues; node != nullptr; node = node->next) {
         auto *issue = AS_VALIDATOR_ISSUE(node->data);
@@ -246,12 +246,10 @@ std::vector<std::string> validate_metainfo(const std::string &xml)
         if (severity != AS_ISSUE_SEVERITY_ERROR && severity != AS_ISSUE_SEVERITY_WARNING)
             continue;
         const gchar *hint = as_validator_issue_get_hint(issue);
-        problems.push_back(
-            std::format(
-                "{}: {}{}",
-                as_issue_severity_to_string(severity),
-                as_validator_issue_get_tag(issue),
-                hint ? std::string(" (") + hint + ")" : ""));
+        problems.push_back({
+            .error = severity == AS_ISSUE_SEVERITY_ERROR,
+            .text = std::format("{}{}", as_validator_issue_get_tag(issue), hint ? std::string(" (") + hint + ")" : ""),
+        });
     }
     return problems;
 }

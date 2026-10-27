@@ -11,6 +11,7 @@
 #include "manifest.hpp"
 #include "testshared.hpp"
 
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/catch_message.hpp>
 
@@ -163,7 +164,7 @@ TEST_CASE("generated MetaInfo validates", "[metainfo]")
     // only the MetaInfo in the bundle names the image to install
     CHECK(xml.find("manifold.id") == std::string::npos);
     for (const auto &problem : validate_metainfo(xml))
-        UNSCOPED_INFO("validator: " << problem);
+        UNSCOPED_INFO("validator: " << problem.text);
     CHECK(validate_metainfo(xml).empty());
 
     MetaInfo runtime = sdk;
@@ -173,8 +174,22 @@ TEST_CASE("generated MetaInfo validates", "[metainfo]")
     auto runtime_xml = generate_metainfo(runtime);
     CHECK(runtime_xml.find("type=\"runtime\"") != std::string::npos);
     for (const auto &problem : validate_metainfo(runtime_xml))
-        UNSCOPED_INFO("validator: " << problem);
+        UNSCOPED_INFO("validator: " << problem.text);
     CHECK(validate_metainfo(runtime_xml).empty());
+
+    // an application needs a description, and should have a content rating
+    const std::string app = R"(<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.example.Broken</id>
+  <name>Broken</name>
+  <summary>Has no description</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+</component>
+)";
+    auto issues = validate_metainfo(app);
+    CHECK(std::ranges::contains(issues, true, &MetaInfoIssue::error));
+    CHECK(std::ranges::contains(issues, false, &MetaInfoIssue::error));
 }
 
 TEST_CASE("MetaInfo of an image goes into the catalog of the bundle", "[metainfo]")
