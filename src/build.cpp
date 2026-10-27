@@ -239,9 +239,9 @@ void Build::install_packages(
     auto mountpoint = tree / m_system->package_cache_dir();
     s.run({"mkdir", "-p", cache.string(), mountpoint.string()});
     s.run({"mount", "--bind", cache.string(), mountpoint.string()});
-    s.begin_step(std::move(step));
-    m_system->install(s, tree, packages);
-    s.end_step();
+    s.step(std::move(step), [&] {
+        m_system->install(s, tree, packages);
+    });
     s.run({"umount", mountpoint.string()});
 }
 
@@ -251,10 +251,10 @@ void Build::run_actions(Script &s, Stage stage, const fs::path &tree) const
         if (action.stage != stage)
             continue;
         s.comment("action: " + action.name);
-        s.line(std::format("echo {} >&2", shell_quote(std::format("running action {}...", action.name))));
-        s.begin_step(std::format("action '{}'", action.name));
-        m_system->run_in_tree(s, tree, traced_script(action.run));
-        s.end_step();
+        s.message(std::format("running action {}...", action.name));
+        s.step(std::format("action '{}'", action.name), [&] {
+            m_system->run_in_tree(s, tree, traced_script(action.run));
+        });
     }
 }
 
@@ -343,14 +343,14 @@ void Build::build_parts(Script &s, const fs::path &root, const InstallTarget &ta
     s.run({"mkdir", "-p", (m_work / "parts").string()});
     for (const auto *part : m_parts) {
         s.comment("part: " + part->name);
-        s.line(std::format("echo {} >&2", shell_quote(std::format("Building part {}...", part->name))));
+        s.message(std::format("Building part {}...", part->name));
         auto build = part_build(*part, root, target);
         build.binds.emplace_back(prefix_dir, target.prefix);
         build.script += shell_lines(part->post_install);
         list_files(*part, ".before");
-        s.begin_step(std::format("part '{}'", part->name));
-        run_part_build(s, build);
-        s.end_step();
+        s.step(std::format("part '{}'", part->name), [&] {
+            run_part_build(s, build);
+        });
         list_files(*part, ".after");
     }
 }
@@ -363,7 +363,7 @@ void Build::stage_parts(Script &s, const std::vector<fs::path> &lowers) const
     std::vector<fs::path> stages;
     for (const auto *part : m_parts) {
         s.comment("part: " + part->name);
-        s.line(std::format("echo {} >&2", shell_quote(std::format("Building part {}...", part->name))));
+        s.message(std::format("Building part {}...", part->name));
         auto layers = stages;
         layers.insert(layers.end(), lowers.begin(), lowers.end());
         s.run({"mkdir", "-p", part_stage(*part).string()});
@@ -372,9 +372,9 @@ void Build::stage_parts(Script &s, const std::vector<fs::path> &lowers) const
         auto build = part_build(*part, root, target);
         build.binds.emplace_back(part_stage(*part), "/run/build/_install");
         build.env.emplace_back("DESTDIR", "/run/build/_install");
-        s.begin_step(std::format("part '{}'", part->name));
-        run_part_build(s, build);
-        s.end_step();
+        s.step(std::format("part '{}'", part->name), [&] {
+            run_part_build(s, build);
+        });
         merge_into_usr(s, part_stage(*part));
 
         s.run({"umount", root.string()});
@@ -402,9 +402,9 @@ void Build::install_stages(Script &s, const fs::path &tree) const
     for (const auto *part : m_parts) {
         s.run({"cp", "-a", (part_stage(*part) / ".").string(), (tree / ".").string()});
         if (!part->post_install.empty()) {
-            s.begin_step(std::format("Post-install of part '{}'", part->name));
-            m_system->run_in_tree(s, tree, traced_script(shell_lines(part->post_install)));
-            s.end_step();
+            s.step(std::format("Post-install of part '{}'", part->name), [&] {
+                m_system->run_in_tree(s, tree, traced_script(shell_lines(part->post_install)));
+            });
         }
     }
 }

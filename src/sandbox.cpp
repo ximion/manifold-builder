@@ -49,6 +49,23 @@ void Script::comment(std::string text)
     line("# " + text);
 }
 
+void Script::write_file(const fs::path &path, std::string_view content)
+{
+    line(std::format("printf '%s' {} > {}", shell_quote(content), shell_quote(path.string())));
+}
+
+void Script::message(std::string_view text)
+{
+    line(std::format("echo {} >&2", shell_quote(text)));
+}
+
+void Script::step(std::string description, const std::function<void()> &add)
+{
+    begin_step(std::move(description));
+    add();
+    end_step();
+}
+
 void Script::begin_step(std::string description)
 {
     m_steps.push_back(std::move(description));

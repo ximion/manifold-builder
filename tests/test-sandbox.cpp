@@ -49,37 +49,37 @@ TEST_CASE("a failing recipe command is reported with its step", "[sandbox]")
 {
     Script s;
     s.run({"true"});
-    s.begin_step("action 'greet'");
-    run_traced(s, "echo hello\nls /nonexistent\necho never\n");
-    s.end_step();
+    s.step("action 'greet'", [&] {
+        run_traced(s, "echo hello\nls /nonexistent\necho never\n");
+    });
     CHECK(failure_of(s) == "action 'greet': Command failed with status 2: ls /nonexistent");
 }
 
 TEST_CASE("the recipe's own line is reported", "[sandbox]")
 {
     Script s;
-    s.begin_step("part 'x'");
-    run_traced(s, "greeting=$(false)\n");
-    s.end_step();
+    s.step("part 'x'", [&] {
+        run_traced(s, "greeting=$(false)\n");
+    });
     CHECK(failure_of(s) == "part 'x': Command failed with status 1: greeting=$(false)");
 
     // a failure that did not stop the script is not reported
     Script t;
-    t.begin_step("part 'x'");
-    run_traced(t, "echo \"$(false; echo hello)\"\nls /nonexistent\n");
-    t.end_step();
+    t.step("part 'x'", [&] {
+        run_traced(t, "echo \"$(false; echo hello)\"\nls /nonexistent\n");
+    });
     CHECK(failure_of(t) == "part 'x': Command failed with status 2: ls /nonexistent");
 }
 
 TEST_CASE("a step fails in a command of our own", "[sandbox]")
 {
     Script s;
-    s.begin_step("bootstrapping the core");
-    s.run({"true"});
-    s.end_step();
-    s.begin_step("installing packages");
-    s.run({"bash", "-c", "exit 100"});
-    s.end_step();
+    s.step("bootstrapping the core", [&] {
+        s.run({"true"});
+    });
+    s.step("installing packages", [&] {
+        s.run({"bash", "-c", "exit 100"});
+    });
     CHECK(failure_of(s) == "installing packages failed with status 100");
 }
 
@@ -182,9 +182,9 @@ TEST_CASE("the top directories of a stage go below /usr", "[sandbox]")
 TEST_CASE("a failure outside of any step", "[sandbox]")
 {
     Script s;
-    s.begin_step("part 'x'");
-    s.run({"true"});
-    s.end_step();
+    s.step("part 'x'", [&] {
+        s.run({"true"});
+    });
     s.run({"false"});
     CHECK(failure_of(s) == "Build script failed with status 1 (run with --verbose to see the script)");
 }

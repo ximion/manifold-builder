@@ -9,6 +9,7 @@
 #include "utils.hpp"
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -59,16 +60,22 @@ public:
     void comment(std::string text);
 
     /**
-     * Begin a step of the recipe, e.g. a part or an action.
-     *
-     * If the script fails before end_step(), the error names the step.
+     * Append a command that writes `content` to `path`, replacing the file.
      */
-    void begin_step(std::string description);
+    void write_file(const fs::path &path, std::string_view content);
 
     /**
-     * End the step that begin_step() started.
+     * Append a command that shows `text` on stderr.
      */
-    void end_step();
+    void message(std::string_view text);
+
+    /**
+     * Append what `add` appends as a step of the recipe, e.g. a part or an
+     * action.
+     *
+     * If the script fails in the step, the error names it.
+     */
+    void step(std::string description, const std::function<void()> &add);
 
     const std::string &text() const
     {
@@ -80,6 +87,9 @@ public:
     }
 
 private:
+    void begin_step(std::string description);
+    void end_step();
+
     std::string m_text;
     std::vector<std::string> m_steps;
 };

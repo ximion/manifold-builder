@@ -83,15 +83,15 @@ private:
     {
         log::section_box("Bootstrap");
         Script s;
-        s.begin_step("Bootstrapping the core");
-        m_system->bootstrap(s, rootfs(), m_recipe);
-        s.end_step();
+        s.step("Bootstrapping the core", [&] {
+            m_system->bootstrap(s, rootfs(), m_recipe);
+        });
         // the dependencies of requested development packages decide what goes into the runtime
         auto development = m_system->development_packages(m_recipe);
         if (!development.empty()) {
-            s.begin_step("Resolving the development packages");
-            m_system->dump_dependencies(s, rootfs(), development, dependencies_dump());
-            s.end_step();
+            s.step("Resolving the development packages", [&] {
+                m_system->dump_dependencies(s, rootfs(), development, dependencies_dump());
+            });
         }
         m_sandbox.run(s);
         check_merged_usr(rootfs());
@@ -107,9 +107,9 @@ private:
         Script s;
         install_packages(s, rootfs(), packages, "Installing packages");
         if (!m_recipe.locales.empty()) {
-            s.begin_step("Generating locales");
-            m_system->generate_locales(s, rootfs(), m_recipe.locales);
-            s.end_step();
+            s.step("Generating locales", [&] {
+                m_system->generate_locales(s, rootfs(), m_recipe.locales);
+            });
         }
         postprocess_core(s, rootfs(), m_system->multiarch());
         run_actions(s, Stage::runtime, rootfs());
@@ -197,7 +197,7 @@ void postprocess_core(Script &s, const fs::path &tree, const std::string &multia
 /app/lib/{}
 )",
         multiarch);
-    s.line(std::format("printf '%s' {} > {}", shell_quote(libraries), shell_quote(ld_conf.string())));
+    s.write_file(ld_conf, libraries);
 
     // The compose daemon shows the host's /usr, /etc and /var/cache/fontconfig
     // below /run/host. With remap-dir, fontconfig records the host's fonts under
@@ -215,7 +215,7 @@ void postprocess_core(Script &s, const fs::path &tree, const std::string &multia
 )";
     auto conf = tree / "etc/fonts/conf.d/50-manifold-host-fonts.conf";
     s.run({"mkdir", "-p", conf.parent_path().string()});
-    s.line(std::format("printf '%s' {} > {}", shell_quote(fonts), shell_quote(conf.string())));
+    s.write_file(conf, fonts);
 }
 
 void check_merged_usr(const fs::path &tree)

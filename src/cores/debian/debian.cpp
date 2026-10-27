@@ -324,11 +324,7 @@ path-exclude /usr/share/locale/*
         config += std::format("path-include /usr/share/locale/{}/*\n", name);
         keep_find += std::format(" ! -name {}", shell_quote(name));
     }
-    s.line(
-        std::format(
-            "printf '%s' {} > {}",
-            shell_quote(config),
-            shell_quote((rootfs / "etc/dpkg/dpkg.cfg.d/manifold-slim").string())));
+    s.write_file(rootfs / "etc/dpkg/dpkg.cfg.d/manifold-slim", config);
     // remove what the bootstrap already placed
     run_in_tree(
         s,

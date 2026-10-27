@@ -215,9 +215,9 @@ private:
         mount_layers(s, "kit-sdk", sdk_lowers());
         m_system->refresh(s, merged("kit-sdk"));
         if (!development.empty()) {
-            s.begin_step("Resolving the development packages");
-            m_system->dump_dependencies(s, merged("kit-sdk"), development, dependencies_dump());
-            s.end_step();
+            s.step("Resolving the development packages", [&] {
+                m_system->dump_dependencies(s, merged("kit-sdk"), development, dependencies_dump());
+            });
         }
         install_packages(s, merged("kit-sdk"), m_system->packages_request_sdk(m_recipe), "Installing SDK packages");
 
