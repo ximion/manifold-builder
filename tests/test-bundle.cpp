@@ -54,7 +54,6 @@ void replace_entry(const fs::path &archive_path, const char *name, std::string_v
  */
 fs::path make_test_bundle(const fs::path &dir, const std::optional<fs::path> &key = std::nullopt)
 {
-    write_file(dir / "a.raw", "not really an image");
     Manifest manifest;
     manifest.component = "a";
     manifest.kind = "core";
@@ -63,15 +62,7 @@ fs::path make_test_bundle(const fs::path &dir, const std::optional<fs::path> &ke
     manifest.architecture = "x86_64";
     manifest.identity = checksum_data_hex("a", ChecksumKind::Sha256);
     manifest.content_hash = checksum_data_hex("a 1", ChecksumKind::Sha256);
-    manifest.image = ImageFile{
-        .file = "a.raw",
-        .size = fs::file_size(dir / "a.raw"),
-        .blake3 = checksum_file_hex(dir / "a.raw", ChecksumKind::Blake3),
-        .sha256 = checksum_file_hex(dir / "a.raw", ChecksumKind::Sha256),
-        .verity_root_hash = checksum_data_hex("verity", ChecksumKind::Sha256),
-        .data_offset = 1,
-        .hash_offset = 2,
-    };
+    manifest.image = test::fake_image(dir, "a.raw");
     write_manifest(manifest, dir / "a.manifold.json");
     write_file(
         dir / "catalog.xml",

@@ -6,7 +6,9 @@
 
 #pragma once
 
+#include "checksum.hpp"
 #include "error.hpp"
+#include "manifest.hpp"
 #include "recipe.hpp"
 #include "utils.hpp"
 
@@ -60,6 +62,25 @@ public:
 private:
     fs::path m_path;
 };
+
+/**
+ * Write a file that stands in for an image to `dir`, and describe it with
+ * made-up hashes that still look valid, so Manifold accepts its manifest.
+ */
+inline ImageFile fake_image(const fs::path &dir, const std::string &file)
+{
+    write_file(dir / file, "not really an image");
+    return ImageFile{
+        .file = file,
+        .size = fs::file_size(dir / file),
+        .blake3 = checksum_file_hex(dir / file, ChecksumKind::Blake3),
+        .sha256 = checksum_file_hex(dir / file, ChecksumKind::Sha256),
+        // a store keeps its images by verity hash, so each one needs its own
+        .verity_root_hash = checksum_data_hex("verity " + file, ChecksumKind::Sha256),
+        .data_offset = 1,
+        .hash_offset = 2,
+    };
+}
 
 /**
  * Check whether parsing the recipe text fails.

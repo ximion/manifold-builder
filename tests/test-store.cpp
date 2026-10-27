@@ -10,7 +10,6 @@
 #include "testshared.hpp"
 
 #include <catch2/catch_test_macros.hpp>
-#include <fstream>
 
 using namespace mfb;
 using mfb::test::TempDir;
@@ -19,75 +18,50 @@ TEST_CASE("cores and platforms are found", "[store]")
 {
     TempDir tmp("core-lookup");
     const auto &dir = tmp.path();
-    // made-up hashes that still look valid, so Manifold accepts the manifests
-    auto image_of = [&](const std::string &file) {
-        std::ofstream(dir / file) << "not really an image";
-        return ImageFile{
-            .file = file,
-            .size = fs::file_size(dir / file),
-            .blake3 = checksum_file_hex(dir / file, ChecksumKind::Blake3),
-            .sha256 = checksum_file_hex(dir / file, ChecksumKind::Sha256),
-            .verity_root_hash = checksum_data_hex("verity " + file, ChecksumKind::Sha256),
-            .data_offset = 1048576,
-            .hash_offset = 2097152,
-        };
-    };
-    auto describe = [&](std::string version, bool sdk, int64_t revision = 1, std::string build = "") {
-        Manifest manifest;
-        manifest.component = sdk ? "net.example.core.sdk" : "net.example.core";
-        manifest.kind = "core";
-        manifest.version = version;
-        manifest.architecture = "x86_64";
-        manifest.sdk = sdk;
-        manifest.identity = checksum_data_hex(sdk ? "sdk-identity" : "core-identity", ChecksumKind::Sha256);
-        manifest.content_hash = checksum_data_hex(version + build + (sdk ? "-sdk" : ""), ChecksumKind::Sha256);
-        if (sdk)
-            manifest.base = BaseRef{
-                .component = "net.example.core",
+    // Write the manifests of a layer and its SDK as the builder names them, and
+    // return the layer's reference. `build` tells rebuilds of a version apart.
+    auto write_layer = [&](const std::string &component,
+                           const std::string &kind,
+                           const std::string &version,
+                           int64_t revision,
+                           const std::string &build = "",
+                           std::optional<BaseRef> base = std::nullopt) {
+        auto ref = [&](bool sdk) {
+            auto id = component + (sdk ? ".sdk" : "");
+            return BaseRef{
+                .component = id,
                 .version = version,
-                .identity = checksum_data_hex("core-identity", ChecksumKind::Sha256),
-                .content_hash = checksum_data_hex(version + build, ChecksumKind::Sha256)};
-        manifest.revision = revision;
-        auto stem = std::format("{}_{}-{}_x86-64", manifest.component, version, revision);
-        manifest.image = image_of(stem + ".raw");
-        write_manifest(manifest, dir / (stem + ".manifold.json"));
+                .identity = checksum_data_hex(id, ChecksumKind::Sha256),
+                .content_hash = checksum_data_hex(id + version + build, ChecksumKind::Sha256),
+            };
+        };
+        for (bool sdk : {false, true}) {
+            auto self = ref(sdk);
+            Manifest manifest{
+                .component = self.component,
+                .kind = kind,
+                .version = version,
+                .revision = revision,
+                .architecture = "x86_64",
+                .sdk = sdk,
+                .identity = self.identity,
+                .content_hash = self.content_hash,
+                .base = sdk ? ref(false) : base,
+            };
+            auto stem = std::format("{}_{}-{}_x86-64", manifest.component, version, revision);
+            manifest.image = test::fake_image(dir, stem + ".raw");
+            write_manifest(manifest, dir / (stem + ".manifold.json"));
+        }
+        return ref(false);
     };
+    write_layer("net.example.core", "core", "12.1a", 1);
+    auto core = write_layer("net.example.core", "core", "12.2", 1);
+    write_layer("net.example.core", "core", "12.10", 1);
+    write_layer("net.example.core", "core", "12.10", 2);
     // a platform built on core 12.2
-    auto platform = [&](bool sdk) {
-        Manifest manifest;
-        manifest.component = sdk ? "net.example.platform.sdk" : "net.example.platform";
-        manifest.kind = "platform";
-        manifest.version = "20260117.0900";
-        manifest.architecture = "x86_64";
-        manifest.sdk = sdk;
-        manifest.identity = checksum_data_hex("platform-identity", ChecksumKind::Sha256);
-        manifest.content_hash = checksum_data_hex(sdk ? "p-sdk" : "p", ChecksumKind::Sha256);
-        auto core_ref = BaseRef{
-            .component = "net.example.core",
-            .version = "12.2",
-            .identity = checksum_data_hex("core-identity", ChecksumKind::Sha256),
-            .content_hash = checksum_data_hex("12.2", ChecksumKind::Sha256)};
-        auto platform_ref = BaseRef{
-            .component = "net.example.platform",
-            .version = manifest.version,
-            .identity = checksum_data_hex("platform-identity", ChecksumKind::Sha256),
-            .content_hash = checksum_data_hex("p", ChecksumKind::Sha256)};
-        manifest.base = sdk ? platform_ref : core_ref;
-        manifest.image = image_of(std::format("{}_{}-0_x86-64.raw", manifest.component, manifest.version));
-        write_manifest(
-            manifest, dir / std::format("{}_{}-0_x86-64.manifold.json", manifest.component, manifest.version));
-    };
-    for (auto version : {"12.1a", "12.2", "12.10"}) {
-        describe(version, false);
-        describe(version, true);
-    }
-    describe("12.10", false, 2);
-    describe("12.10", true, 2);
-    platform(false);
-    platform(true);
+    write_layer("net.example.platform", "platform", "20260117.0900", 0, "", core);
     // a newer build of the core version the platform was built on
-    describe("12.2", false, 2, "rebuilt");
-    describe("12.2", true, 2, "rebuilt");
+    write_layer("net.example.core", "core", "12.2", 2, "rebuilt");
 
     // Manifold's own store layout, read through libmanifold. Images are stored by
     // verity hash. Each component has a directory per version, holding the manifest
