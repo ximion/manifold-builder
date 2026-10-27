@@ -164,6 +164,9 @@ TEST_CASE("MetaInfo keys", "[recipe]")
 TEST_CASE("invalid parts are rejected", "[recipe][parts]")
 {
     const std::string app(APP_HEADER);
+    // the build's HOME and DESTDIR are next to the sources
+    for (std::string name : {"home", "_install"})
+        CHECK(recipe_rejected(app + "parts: [{name: " + name + ", buildsystem: simple, build-commands: ['true']}]\n"));
     CHECK(recipe_rejected(app + "parts: [{name: p, buildsystem: qmake}]\n"));
     CHECK(recipe_rejected(app + "parts: [{name: p, buildsystem: simple}]\n"));
     CHECK(recipe_rejected(app + "parts: [{name: p, buildsystem: meson}, {name: p, buildsystem: meson}]\n"));

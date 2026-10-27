@@ -115,6 +115,9 @@ SourceRecord GitSource::fetch(const Source &source, const fs::path &destination,
     fs::create_directories(mirror.parent_path());
     {
         FileLock lock(mirror.string() + ".lock");
+        // keeps it from being pruned
+        if (fs::exists(mirror))
+            touch(mirror);
         update_mirror(source, mirror);
         run({.argv = {"git", "clone", "--quiet", mirror.string(), checkout.string()}});
     }

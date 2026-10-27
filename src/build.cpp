@@ -21,12 +21,14 @@
 #include <cerrno>
 #include <chrono>
 #include <cstring>
+#include <ctime>
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <manifold.h>
 #include <ranges>
 #include <set>
 #include <sys/file.h>
+#include <sys/stat.h>
 #include <thread>
 #include <unistd.h>
 
@@ -114,6 +116,11 @@ void check_metainfo(const fs::path &file, const std::string &name)
         fail("{} is not valid MetaInfo: {}", name, join(errors, ", "));
 }
 
+/**
+ * How long the cache keeps stuff that we haven't used.
+ */
+constexpr std::chrono::days CACHE_MAX_UNUSED_AGE{20};
+
 } // namespace
 
 Build::Build(const Recipe &recipe, const fs::path &recipe_file, const BuildOptions &options)
@@ -140,6 +147,16 @@ fs::path Build::run()
         pack_outputs();
         auto bundle = make_images();
         cleanup_work_dir();
+        // without a cache of its own, the build removed it with the work directory
+        if (m_options.cache_dir) {
+            auto removed = prune_cache(m_cache, CACHE_MAX_UNUSED_AGE);
+            if (removed > 0)
+                LOG_INFO(
+                    logBuild,
+                    "Removed {} entries no build used for {} days from the cache",
+                    removed,
+                    CACHE_MAX_UNUSED_AGE.count());
+        }
         return bundle;
     } catch (...) {
         cleanup_work_dir();
@@ -757,6 +774,58 @@ fs::path Build::make_images()
     write_bundle(m_output, entries, m_options.sign_key);
     verify_bundle(m_output);
     return m_output;
+}
+
+size_t prune_cache(const fs::path &cache, std::chrono::seconds unused)
+{
+    auto limit = std::time(nullptr) - unused.count();
+    auto is_unused = [&](const fs::path &path) {
+        struct stat st;
+        return lstat(path.c_str(), &st) == 0 && std::max(st.st_atime, st.st_mtime) < limit;
+    };
+
+    std::vector<fs::path> files;
+    for (std::string_view dir : {"downloads", "packages", "packages/partial"}) {
+        std::error_code error;
+        for (const auto &entry : fs::directory_iterator(cache / dir, error)) {
+            // apt keeps its lock next to the packages
+            if (entry.is_regular_file() && entry.path().filename() != "lock" && is_unused(entry.path()))
+                files.push_back(entry.path());
+        }
+    }
+    std::vector<fs::path> mirrors;
+    std::error_code error;
+    for (const auto &entry : fs::directory_iterator(cache / "git", error)) {
+        if (entry.is_directory() && is_unused(entry.path()))
+            mirrors.push_back(entry.path());
+    }
+
+    size_t removed = 0;
+    auto remove = [&](const fs::path &path) {
+        std::error_code error;
+        fs::remove_all(path, error);
+        if (error)
+            LOG_WARNING(logBuild, "Cannot remove {} from the cache: {}", path.string(), error.message());
+        else
+            ++removed;
+    };
+    for (const auto &file : files)
+        remove(file);
+    for (const auto &mirror : mirrors) {
+        // NOTE: The lock files stay, so a build waiting for one locks the same file.
+        auto name = mirror;
+        if (name.extension() == ".part")
+            name.replace_extension();
+        auto lock_file = name.string() + ".lock";
+        int lock = open(lock_file.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+        if (lock < 0)
+            continue;
+        // another build may have used the mirror in the meantime
+        if (flock(lock, LOCK_EX | LOCK_NB) == 0 && is_unused(mirror))
+            remove(mirror);
+        close(lock);
+    }
+    return removed;
 }
 
 } // namespace mfb

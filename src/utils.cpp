@@ -121,6 +121,12 @@ void write_file(const fs::path &path, std::string_view content)
         fail("Cannot write {}: {}", path.string(), std::strerror(errno));
 }
 
+void touch(const fs::path &path)
+{
+    std::error_code error;
+    fs::last_write_time(path, fs::file_time_type::clock::now(), error);
+}
+
 std::optional<int64_t> parse_int(std::string_view text)
 {
     int64_t value = 0;

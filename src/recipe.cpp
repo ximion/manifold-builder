@@ -245,6 +245,9 @@ void validate_parts(const Recipe &recipe, const auto &problem)
         // the name is used as a directory name
         if (part->name.empty() || part->name.starts_with('.') || part->name.find('/') != std::string::npos)
             problem(std::format("'{}' is not a valid part name", part->name));
+        // the sources go to /run/build/<name>, next to the HOME and DESTDIR of the build
+        if (part->name == "home" || part->name == "_install")
+            problem(std::format("'{}' is reserved and can not be the name of a part", part->name));
         if (!names.insert(part->name).second)
             problem(std::format("There is more than one part named '{}'", part->name));
         if (!build_system_known(part->buildsystem))

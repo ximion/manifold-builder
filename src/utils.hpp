@@ -74,6 +74,11 @@ std::string read_file(const fs::path &path);
 void write_file(const fs::path &path, std::string_view content);
 
 /**
+ * Set the modification time of a file or directory to now, if we can.
+ */
+void touch(const fs::path &path);
+
+/**
  * Parse a whole string as a decimal integer, or return nothing.
  */
 std::optional<int64_t> parse_int(std::string_view text);

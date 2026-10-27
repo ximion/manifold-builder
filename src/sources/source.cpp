@@ -136,6 +136,8 @@ fs::path obtain_file(const Source &source, const FetchContext &context)
     // fetch a file shared by several sources, builds and recipes only once
     auto file = context.cache / "downloads" / source.sha256;
     if (fs::exists(file)) {
+        // keeps it from being pruned, also while we check it
+        touch(file);
         if (checksum_file_hex(file, ChecksumKind::Sha256) == source.sha256)
             return file;
         LOG_WARNING(logSources, "The cached download of {} is damaged, downloading it again", source.url);

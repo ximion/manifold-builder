@@ -77,12 +77,8 @@ struct Source {
     std::string tag;
     std::string branch;
     std::string commit;
-    std::string sha256; ///< Checksum of an archive, file or patch, required if it is downloaded.
-    /**
-     * Number of leading path components to strip from archive members, or
-     * from the file names in a patch.
-     */
-    int strip_components = 1;
+    std::string sha256;        ///< Checksum of an archive, file or patch, required if it is downloaded.
+    int strip_components = 1;  ///< Leading path components to strip from archive members or patched files
     std::string dest_filename; ///< Name to store a file source under (its own name by default)
 };
 
@@ -127,12 +123,8 @@ struct Part {
     std::vector<std::string> config_opts;
     std::vector<std::string> make_args;
     std::vector<std::string> make_install_args;
-    /**
-     * Shell commands to run after the build system built the part, and
-     * before it installs it.
-     */
-    std::vector<std::string> build_commands;
-    std::vector<std::string> post_install; ///< Shell commands to run after the part is installed
+    std::vector<std::string> build_commands; ///< Shell commands to run between the build and the install
+    std::vector<std::string> post_install;   ///< Shell commands to run after the part is installed
 
     /**
      * Files installed by this part to remove once all parts are built.
@@ -194,10 +186,7 @@ struct Recipe {
     bool run_on_sdk = false;
 
     // common
-    /**
-     * Build options for every part. A part's own build-options apply on top.
-     */
-    std::optional<BuildSettings> build_options;
+    std::optional<BuildSettings> build_options; ///< Build options for every part, below each part's own
     std::vector<PartEntry> parts;
     PackageSet packages;     ///< Packages of the runtime, kit or platform, which the SDK gets too
     PackageSet packages_sdk; ///< Packages only the SDK gets

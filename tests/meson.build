@@ -10,6 +10,7 @@ test_shared_src = [
 test_builder = executable('test-builder',
     test_shared_src,
     'test-bundle.cpp',
+    'test-build.cpp',
     'test-buildsystems.cpp',
     'test-core-build.cpp',
     'test-debian.cpp',
