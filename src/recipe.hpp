@@ -49,7 +49,7 @@ struct ImageSettings {
 };
 
 /**
- * The image an action or file belongs to: the runtime, or the SDK layer on top.
+ * The image an action belongs to: the runtime, or the SDK layer on top.
  */
 enum class Stage {
     runtime,

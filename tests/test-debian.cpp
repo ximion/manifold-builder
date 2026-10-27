@@ -161,6 +161,15 @@ TEST_CASE("the runtime takes what the development packages depend on", "[debian]
         "inline");
     CHECK(debian.development_packages(own) == std::vector<std::string>{"foo-tools"});
 
+    // debug symbols go to the SDK, both old-style and automatic ones
+    auto debug = parse_recipe(
+        std::string(APP_HEADER) + "packages: {apt: [libc6-dbg, libfoo1-dbgsym, fontconfig]}\n"
+                                  "parts: [{name: p, buildsystem: meson}]\n",
+        "inline");
+    CHECK(debian.is_development_package(debug, "libc6-dbg"));
+    CHECK(debian.is_development_package(debug, "libfoo1-dbgsym"));
+    CHECK(!debian.is_development_package(debug, "fontconfig"));
+
     // packages of a different package system are refused
     auto fedora = parse_recipe(
         std::string(APP_HEADER) + "packages: {dnf: [foo-devel]}\nparts: [{name: p, buildsystem: meson}]\n", "inline");

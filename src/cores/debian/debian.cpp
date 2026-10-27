@@ -192,7 +192,8 @@ std::string DebianSystem::package_system() const
 
 std::vector<std::string> DebianSystem::default_sdk_patterns() const
 {
-    return {"*-dev", "*-doc", "*-dbgsym"};
+    // old-style debug packages, and the automatic ones of the debug archive
+    return {"*-dev", "*-doc", "*-dbg", "*-dbgsym"};
 }
 
 std::vector<std::string> DebianSystem::locale_packages() const
