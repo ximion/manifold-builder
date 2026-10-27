@@ -22,9 +22,8 @@ def test_invalid_recipe(builder, tmp_path):
         'component: com.example.Broken\nversion: 1\ncommand: broken\nbase: net.debian.core13\n'
         'base-version: "13"\nparts: [{name: p, buildsystem: quake}]\n'
     )
-    result = builder.run('build', str(recipe))
-    assert result.returncode == 1
-    assert "'buildsystem' must be" in result.stdout
+    output = builder.build_fails(recipe, tmp_path / 'broken.manifold')
+    assert "'buildsystem' must be" in output
 
 
 def test_check_refuses_garbage(builder, tmp_path):

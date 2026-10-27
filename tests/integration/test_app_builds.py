@@ -219,28 +219,18 @@ parts:
 def test_failing_command_is_named(builder, tmp_path):
     recipe = tmp_path / 'com.example.Failing.yaml'
     recipe.write_text(FAILING_RECIPE.format(core=CORE))
-    result = builder.run(
-        'build', '--output', str(tmp_path / 'failing.manifold'), str(recipe), cwd=tmp_path
-    )
-    assert result.returncode == 1
-    assert "part 'broken': Command failed with status 1: test -e /nonexistent" in result.stdout
+    output = builder.build_fails(recipe, tmp_path / 'failing.manifold')
+    assert "part 'broken': Command failed with status 1: test -e /nonexistent" in output
     # the recipe's commands are shown as they run, our own are not
-    assert '+ echo hello\nhello\n' in result.stdout
-    assert 'never' not in result.stdout
-    assert 'trap' not in result.stdout and 'mfb_step' not in result.stdout
+    assert '+ echo hello\nhello\n' in output
+    assert 'never' not in output
+    assert 'trap' not in output and 'mfb_step' not in output
 
 
 def test_malformed_source_date_epoch(builder, hello_recipe, tmp_path, monkeypatch):
     monkeypatch.setenv('SOURCE_DATE_EPOCH', '123abc')
-    result = builder.run(
-        'build',
-        '--output',
-        str(tmp_path / 'hello.manifold'),
-        str(hello_recipe),
-        cwd=hello_recipe.parent,
-    )
-    assert result.returncode == 1
-    assert "SOURCE_DATE_EPOCH must be a number of seconds since 1970, not '123abc'" in result.stdout
+    output = builder.build_fails(hello_recipe, tmp_path / 'hello.manifold')
+    assert "SOURCE_DATE_EPOCH must be a number of seconds since 1970, not '123abc'" in output
 
 
 BROKEN_METAINFO = '''\
@@ -263,10 +253,7 @@ def test_invalid_metainfo_file(builder, tmp_path):
         'metainfo-file: broken.metainfo.xml\n'
         'parts: [{name: p, buildsystem: simple, build-commands: ["true"]}]\n'
     )
-    result = builder.run(
-        'build', '--output', str(tmp_path / 'broken.manifold'), str(recipe), cwd=tmp_path
-    )
     # an error in the recipe's MetaInfo fails the build before anything is built
-    assert result.returncode == 1
-    assert 'is not valid MetaInfo: app-description-required' in result.stdout
-    assert 'Building part' not in result.stdout
+    output = builder.build_fails(recipe, tmp_path / 'broken.manifold')
+    assert 'is not valid MetaInfo: app-description-required' in output
+    assert 'Building part' not in output

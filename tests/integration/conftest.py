@@ -95,6 +95,12 @@ class Builder:
         extract_dir.mkdir(exist_ok=True)
         return Bundle(output, extract_dir)
 
+    def build_fails(self, recipe: Path, output: Path, *args: str) -> str:
+        """Build a recipe that must fail, and return what the builder printed."""
+        result = self.run('build', '--output', str(output), *args, str(recipe), cwd=recipe.parent)
+        assert result.returncode == 1, result.stdout
+        return result.stdout
+
 
 @pytest.fixture(scope='session', autouse=True)
 def cache_dir(tmp_path_factory) -> Path:
