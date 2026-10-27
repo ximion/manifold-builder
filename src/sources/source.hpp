@@ -31,8 +31,10 @@ constexpr std::array<std::string_view, 5> SOURCE_TYPES = {"git", "archive", "fil
 struct FetchContext {
     /// dir of the file that defines the part, local paths are relative to it
     fs::path dir;
-    /// scratch space for downloads and temporary checkouts
+    /// scratch space for temporary checkouts and unpacking
     fs::path scratch;
+    /// downloads and git mirrors, which may be kept for later builds
+    fs::path cache;
     /// our own paths, which a dir source leaves out: the work dir and the output
     std::vector<fs::path> skip;
 };
@@ -94,18 +96,18 @@ void check_source_tools(const std::vector<const Part *> &parts);
  * Fetch the sources of all parts into one directory per part below
  * `sources_dir`, and return their records for the manifest.
  *
- * `skip` lists our own paths, which no source may contain.
+ * Every part gets `context`, with the `dir` of the part.
  */
 std::vector<SourceRecord> fetch_sources(
     const std::vector<const Part *> &parts,
     const fs::path &sources_dir,
-    const fs::path &scratch,
-    const std::vector<fs::path> &skip = {});
+    FetchContext context);
 
 /**
  * Download or locate the file of an archive, file or patch source, and return its path.
  *
- * Fails the build if the file does not match the checksum given in the source.
+ * Downloads go to the cache, named by their checksum. Fails the build if the
+ * file does not match the checksum given in the source.
  */
 fs::path obtain_file(const Source &source, const FetchContext &context);
 

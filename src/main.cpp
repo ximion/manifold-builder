@@ -22,6 +22,7 @@ int main(int argc, char **argv)
     gchar *runtimes_dir = nullptr;
     gchar *sign_key = nullptr;
     gboolean keep_work = FALSE;
+    gboolean no_cache = FALSE;
     gint jobs = 0;
     gboolean verbose = FALSE;
     gboolean show_version = FALSE;
@@ -52,6 +53,11 @@ int main(int argc, char **argv)
         {"keep-work", 0, 0, G_OPTION_ARG_NONE,
          &keep_work,
          "Keep the work directory after the build", nullptr
+        },
+
+        {"no-cache", 0, 0, G_OPTION_ARG_NONE,
+         &no_cache,
+         "Fetch every source and package again, instead of keeping them for later builds", nullptr
         },
 
         {"jobs", 'j', 0, G_OPTION_ARG_INT,
@@ -126,6 +132,8 @@ int main(int argc, char **argv)
     if (sign_key)
         options.sign_key = sign_key;
     options.keep_work = keep_work;
+    if (!no_cache)
+        options.cache_dir = mfb::fs::path(g_get_user_cache_dir()) / "manifold-builder";
     options.jobs = static_cast<unsigned>(jobs);
     g_option_context_free(context);
 

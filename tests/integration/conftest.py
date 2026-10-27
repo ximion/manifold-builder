@@ -96,6 +96,14 @@ class Builder:
         return Bundle(output, extract_dir)
 
 
+@pytest.fixture(scope='session', autouse=True)
+def cache_dir(tmp_path_factory) -> Path:
+    """Keep the builds' downloads and packages out of the user's own cache."""
+    path = tmp_path_factory.mktemp('cache')
+    os.environ['XDG_CACHE_HOME'] = str(path)
+    return path
+
+
 @pytest.fixture(scope='session')
 def builder() -> Builder:
     path = os.environ.get('MANIFOLD_BUILDER')

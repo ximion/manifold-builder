@@ -166,6 +166,8 @@ void Build::setup()
     prepare_work_dir();
     LOG_DEBUG(logBuild, "Work directory {}", m_work.string());
     m_sandbox.tmp_dir = m_work / "tmp";
+    m_cache = fs::absolute(m_options.cache_dir.value_or(m_work / "cache"));
+    LOG_DEBUG(logBuild, "Cache directory {}", m_cache.string());
 }
 
 void Build::prepare_work_dir()
@@ -233,7 +235,7 @@ void Build::install_packages(
 {
     if (packages.empty())
         return;
-    auto cache = m_work / "package-cache";
+    auto cache = m_cache / "packages";
     auto mountpoint = tree / m_system->package_cache_dir();
     s.run({"mkdir", "-p", cache.string(), mountpoint.string()});
     s.run({"mount", "--bind", cache.string(), mountpoint.string()});
@@ -261,7 +263,10 @@ void Build::fetch_sources()
     if (m_parts.empty())
         return;
     log::section_box("Retrieving Sources");
-    m_sources = mfb::fetch_sources(m_parts, m_work / "sources", m_work / "downloads", {m_work, m_output});
+    m_sources = mfb::fetch_sources(
+        m_parts,
+        m_work / "sources",
+        {.scratch = m_work / "fetch", .cache = m_cache, .skip = {m_work, m_output, m_cache}});
 }
 
 std::vector<std::pair<std::string, std::string>> Build::part_environment(const Part &part, const InstallTarget &target)

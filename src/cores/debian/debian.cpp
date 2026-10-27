@@ -259,9 +259,14 @@ void DebianSystem::install(Script &s, const fs::path &tree, const std::vector<st
 {
     if (packages.empty())
         return;
+    // NOTE: apt would download as _apt, which is a subuid outside the
+    // namespace and would own partial/ in the shared cache. Root in the
+    // namespace is our own uid.
     std::vector<std::string> install = {
         "-o",
         "Dir::Cache::Archives=/" + package_cache_dir(),
+        "-o",
+        "APT::Sandbox::User=root",
         "install",
         "-yqq",
         "--no-install-recommends",

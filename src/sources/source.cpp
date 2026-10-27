@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <set>
+#include <unistd.h>
 
 namespace mfb
 {
@@ -80,18 +81,17 @@ void check_source_tools(const std::vector<const Part *> &parts)
 std::vector<SourceRecord> fetch_sources(
     const std::vector<const Part *> &parts,
     const fs::path &sources_dir,
-    const fs::path &scratch,
-    const std::vector<fs::path> &skip)
+    FetchContext context)
 {
     std::vector<SourceRecord> records;
     for (const auto *part : parts) {
         // a part without sources still gets an empty directory to build in
         auto part_dir = sources_dir / part->name;
         fs::create_directories(part_dir);
+        context.dir = part->dir;
         for (const auto &source : part->sources) {
             auto destination = part_dir / source.dest;
-            auto record = source_fetcher_for(source.type)
-                              ->fetch(source, destination, {.dir = part->dir, .scratch = scratch, .skip = skip});
+            auto record = source_fetcher_for(source.type)->fetch(source, destination, context);
             record.part = part->name;
             records.push_back(record);
         }
@@ -101,41 +101,54 @@ std::vector<SourceRecord> fetch_sources(
 
 fs::path obtain_file(const Source &source, const FetchContext &context)
 {
-    fs::path file;
-    if (!source.url.empty()) {
-        // name downloads by checksum (check() requires one for URLs), so we
-        // fetch a file shared by several sources only once
-        file = context.scratch / "downloads" / source.sha256;
-        if (!fs::exists(file)) {
-            fs::create_directories(file.parent_path());
-            LOG_INFO(logSources, "Downloading {}...", source.url);
-            auto partial = file;
-            partial += ".part";
-            std::vector<std::string> curl = {
-                "curl",
-                "--fail",
-                "--silent",
-                "--show-error",
-                "--location",
-                "--retry",
-                "3",
-                "--output",
-                partial.string(),
-                source.url,
-            };
-            run({.argv = curl});
-            fs::rename(partial, file);
-        }
-    } else {
-        file = context.dir / source.path;
+    if (source.url.empty()) {
+        auto file = context.dir / source.path;
         if (!fs::is_regular_file(file))
             fail("{} does not exist", file.string());
+        if (!source.sha256.empty()) {
+            auto sha256 = checksum_file_hex(file, ChecksumKind::Sha256);
+            if (sha256 != source.sha256)
+                fail("{} has sha256 {}, not {}", file.string(), sha256, source.sha256);
+        }
+        return file;
     }
-    if (!source.sha256.empty()) {
-        auto sha256 = checksum_file_hex(file, ChecksumKind::Sha256);
+
+    // name downloads by checksum (check() requires one for URLs), so we
+    // fetch a file shared by several sources, builds and recipes only once
+    auto file = context.cache / "downloads" / source.sha256;
+    if (fs::exists(file)) {
+        if (checksum_file_hex(file, ChecksumKind::Sha256) == source.sha256)
+            return file;
+        LOG_WARNING(logSources, "The cached download of {} is damaged, downloading it again", source.url);
+    }
+    fs::create_directories(file.parent_path());
+    LOG_INFO(logSources, "Downloading {}...", source.url);
+    // a name of our own, in case a parallel build downloads the same file
+    auto partial = file;
+    partial += std::format(".{}.part", getpid());
+    std::vector<std::string> curl = {
+        "curl",
+        "--fail",
+        "--silent",
+        "--show-error",
+        "--location",
+        "--retry",
+        "3",
+        "--output",
+        partial.string(),
+        source.url,
+    };
+    try {
+        run({.argv = curl});
+        auto sha256 = checksum_file_hex(partial, ChecksumKind::Sha256);
         if (sha256 != source.sha256)
-            fail("{} has sha256 {}, not {}", source.url.empty() ? file.string() : source.url, sha256, source.sha256);
+            fail("{} has sha256 {}, not {}", source.url, sha256, source.sha256);
+    } catch (...) {
+        std::error_code error;
+        fs::remove(partial, error);
+        throw;
     }
+    fs::rename(partial, file);
     return file;
 }
 

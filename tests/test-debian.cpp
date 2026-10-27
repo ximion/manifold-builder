@@ -84,6 +84,8 @@ TEST_CASE("package installs never remove packages and share their downloads", "[
     debian.install(s, "/tree", {"foo"});
     CHECK(s.text().find("--no-remove") != std::string::npos);
     CHECK(s.text().find("Dir::Cache::Archives=/" + debian.package_cache_dir()) != std::string::npos);
+    // the shared package cache belongs to us, not to apt's sandbox user
+    CHECK(s.text().find("APT::Sandbox::User=root") != std::string::npos);
     // debuerreotype empties apt's own archives directory after every dpkg run
     CHECK(debian.package_cache_dir() != "var/cache/apt/archives");
 }

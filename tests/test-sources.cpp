@@ -21,7 +21,8 @@ namespace
 SourceRecord fetch(const Source &source, const fs::path &destination, const TempDir &dir)
 {
     REQUIRE(check_source(source).empty());
-    return source_fetcher_for(source.type)->fetch(source, destination, {.dir = dir.path(), .scratch = dir / "scratch"});
+    return source_fetcher_for(source.type)
+        ->fetch(source, destination, {.dir = dir.path(), .scratch = dir / "scratch", .cache = dir / "cache"});
 }
 
 /**
@@ -90,7 +91,7 @@ TEST_CASE("a dir source leaves out work dirs and the output", "[sources]")
     auto record = source_fetcher_for("dir")->fetch(
         {.type = "dir", .path = "."},
         work / "sources/app",
-        {.dir = dir.path(), .scratch = work / "downloads", .skip = {work, dir / "app.manifold"}});
+        {.dir = dir.path(), .scratch = work / "fetch", .cache = work / "cache", .skip = {work, dir / "app.manifold"}});
     CHECK(read_file(work / "sources/app/README") == "hello\n");
     CHECK(fs::exists(work / "sources/app/docs/index.md"));
     CHECK(!fs::exists(work / "sources/app/_build-app"));
@@ -113,6 +114,29 @@ TEST_CASE("file sources", "[sources]")
 
     Source wrong{.type = "file", .path = "launcher.sh", .sha256 = checksum_data_hex("other", ChecksumKind::Sha256)};
     CHECK_THROWS_AS(fetch(wrong, dir / "out", dir), BuildError);
+}
+
+TEST_CASE("downloads are kept in the cache", "[sources]")
+{
+    if (!find_tool("curl"))
+        SKIP("curl is not installed");
+    TempDir dir("source-download");
+    write_file(dir / "served.sh", "#!/bin/sh\n");
+    auto sha256 = checksum_file_hex(dir / "served.sh", ChecksumKind::Sha256);
+    Source source{.type = "file", .url = "file://" + (dir / "served.sh").string(), .sha256 = sha256};
+
+    fetch(source, dir / "out", dir);
+    CHECK(read_file(dir / "cache/downloads" / sha256) == "#!/bin/sh\n");
+    // a later build needs no network
+    fs::remove(dir / "served.sh");
+    fetch(source, dir / "again", dir);
+    CHECK(read_file(dir / "again/served.sh") == "#!/bin/sh\n");
+
+    // a download that fails its checksum is not kept
+    write_file(dir / "served.sh", "changed\n");
+    Source changed{.type = "file", .url = source.url, .sha256 = checksum_data_hex("x", ChecksumKind::Sha256)};
+    CHECK_THROWS_AS(fetch(changed, dir / "changed", dir), BuildError);
+    CHECK(std::distance(fs::directory_iterator(dir / "cache/downloads"), {}) == 1);
 }
 
 TEST_CASE("patch sources apply to the sources before them", "[sources]")
@@ -212,6 +236,23 @@ TEST_CASE("git sources", "[sources]")
     CHECK(fs::exists(dir / "both/extra"));
     CHECK(fs::exists(dir / "both/README"));
 
+    // a commit the mirror has needs no origin
+    fs::rename(dir / "repo", dir / "moved");
+    auto pinned = fetch({.type = "git", .url = (dir / "repo").string(), .commit = commit}, dir / "pinned", dir);
+    CHECK(pinned.pin() == commit);
+    // a newer commit is fetched into the mirror
+    fs::rename(dir / "moved", dir / "repo");
+    write_file(dir / "repo/NEWS", "news\n");
+    git({"add", "NEWS"});
+    git({"commit", "--quiet", "-m", "news"});
+    auto latest = fetch({.type = "git", .url = (dir / "repo").string(), .branch = "main"}, dir / "latest", dir);
+    CHECK(latest.pin() == git({"rev-parse", "HEAD"}));
+    CHECK(fs::exists(dir / "latest/NEWS"));
+    // the checkout's origin is the source, not the mirror
+    CHECK(
+        run_capture({.argv = {"git", "-C", (dir / "latest").string(), "remote", "get-url", "origin"}})
+        == (dir / "repo").string());
+
     Source mismatch{
         .type = "git",
         .url = (dir / "repo").string(),
@@ -232,7 +273,8 @@ TEST_CASE("every part gets a source directory, sources go to their dest", "[sour
         .dir = dir.path(),
     };
     Part empty{.name = "nothing", .buildsystem = "simple", .build_commands = {"true"}};
-    auto records = fetch_sources({&part, &empty}, dir / "sources", dir / "scratch");
+    auto records = fetch_sources(
+        {&part, &empty}, dir / "sources", {.scratch = dir / "scratch", .cache = dir / "cache"});
     REQUIRE(records.size() == 2);
     CHECK(records[0].part == "p");
     CHECK(fs::exists(dir / "sources/p/src/main.c"));
