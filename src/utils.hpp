@@ -49,7 +49,7 @@ std::vector<std::string> read_lines(const fs::path &path);
  * Join the entries into one string, with `separator` between them.
  */
 template<std::ranges::input_range Range>
-std::string join(const Range &entries, std::string_view separator)
+std::string join(Range &&entries, std::string_view separator)
 {
     std::string joined;
     bool first = true;

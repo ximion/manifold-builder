@@ -238,12 +238,11 @@ void move_paths(
     if (patterns.empty())
         return;
     // the globs stay unquoted, so the shell expands them
-    std::string globs;
-    for (const auto &pattern : patterns) {
-        if (!globs.empty())
-            globs += ' ';
-        globs += std::format("{}/{}", prefix, pattern.starts_with('/') ? pattern.substr(1) : pattern);
-    }
+    auto globs = join(
+        patterns | std::views::transform([&](const std::string &pattern) {
+            return std::format("{}/{}", prefix, pattern.starts_with('/') ? pattern.substr(1) : pattern);
+        }),
+        " ");
     // the subshell keeps the shell options and the directory to itself
     s.line(
         std::format(

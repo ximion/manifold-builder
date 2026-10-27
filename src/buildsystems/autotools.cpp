@@ -55,9 +55,7 @@ std::string AutotoolsBuildSystem::build(
 
 std::string AutotoolsBuildSystem::install(const Part &part) const
 {
-    std::vector<std::string> install = {"make", "install"};
-    install.insert(install.end(), part.make_install_args.begin(), part.make_install_args.end());
-    return shell_join(install) + "\n";
+    return install_command({"make", "install"}, part);
 }
 
 } // namespace mfb

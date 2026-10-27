@@ -31,9 +31,7 @@ std::string MesonBuildSystem::build(
 
 std::string MesonBuildSystem::install(const Part &part) const
 {
-    std::vector<std::string> install = {"ninja", "-C", BUILD_DIR, "install"};
-    install.insert(install.end(), part.make_install_args.begin(), part.make_install_args.end());
-    return shell_join(install) + "\n";
+    return install_command({"ninja", "-C", BUILD_DIR, "install"}, part);
 }
 
 } // namespace mfb

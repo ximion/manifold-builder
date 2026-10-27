@@ -41,9 +41,7 @@ std::string CMakeBuildSystem::build(
 
 std::string CMakeBuildSystem::install(const Part &part) const
 {
-    std::vector<std::string> install = {build_tool(), "-C", BUILD_DIR, "install"};
-    install.insert(install.end(), part.make_install_args.begin(), part.make_install_args.end());
-    return shell_join(install) + "\n";
+    return install_command({build_tool(), "-C", BUILD_DIR, "install"}, part);
 }
 
 std::string CMakeBuildSystem::build_tool() const

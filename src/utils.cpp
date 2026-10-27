@@ -181,15 +181,11 @@ size_t remove_identical_files(
 
 std::string make_search_path(std::initializer_list<std::string> entries)
 {
-    std::string joined;
-    for (const auto &entry : entries) {
-        if (entry.empty())
-            continue;
-        if (!joined.empty())
-            joined += ':';
-        joined += entry;
-    }
-    return joined;
+    return join(
+        entries | std::views::filter([](const std::string &entry) {
+            return !entry.empty();
+        }),
+        ":");
 }
 
 std::vector<std::string> read_lines(const fs::path &path)

@@ -125,5 +125,9 @@ TEST_CASE("unknown build systems", "[buildsystems]")
 {
     CHECK(build_system_known("cmake-make"));
     CHECK(!build_system_known("qmake"));
+    // every known build system can be created
+    CHECK(build_system_names().size() == 5);
+    for (auto name : build_system_names())
+        CHECK(build_system_for(std::string(name)) != nullptr);
     CHECK_THROWS_AS(build_system_for("qmake"), BuildError);
 }

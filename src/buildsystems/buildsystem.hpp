@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <array>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -28,11 +27,6 @@ struct InstallTarget {
     /** Library directory, relative to the prefix. */
     std::string libdir;
 };
-
-/**
- * Build systems a part may use. cmake generates for Ninja, cmake-make for make.
- */
-constexpr std::array<std::string_view, 5> BUILD_SYSTEMS = {"meson", "cmake", "cmake-make", "autotools", "simple"};
 
 /**
  * Build directory of meson and cmake, inside the source tree.
@@ -72,6 +66,12 @@ public:
 };
 
 /**
+ * List the build systems a part may use. cmake generates for Ninja,
+ * cmake-make for make.
+ */
+std::vector<std::string_view> build_system_names();
+
+/**
  * Check whether `name` is a known build system.
  */
 bool build_system_known(std::string_view name);
@@ -86,6 +86,12 @@ std::unique_ptr<BuildSystem> build_system_for(const std::string &name);
  * extra arguments.
  */
 std::string parallel_command(const std::vector<std::string> &argv, const std::vector<std::string> &arguments);
+
+/**
+ * Create the install command line of a build system, followed by the part's
+ * make-install-args.
+ */
+std::string install_command(std::vector<std::string> argv, const Part &part);
 
 /**
  * Create the script that builds and installs a part.

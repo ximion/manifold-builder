@@ -18,23 +18,53 @@
 namespace mfb
 {
 
+namespace
+{
+
+using BuildSystemFactory = std::unique_ptr<BuildSystem> (*)();
+
+template<typename System>
+std::unique_ptr<BuildSystem> create()
+{
+    return std::make_unique<System>();
+}
+
+template<CMakeBuildSystem::Generator generator>
+std::unique_ptr<BuildSystem> create_cmake()
+{
+    return std::make_unique<CMakeBuildSystem>(generator);
+}
+
+/**
+ * Build systems a part may use.
+ */
+const std::pair<std::string_view, BuildSystemFactory> BUILD_SYSTEMS[] = {
+    {"meson", create<MesonBuildSystem>},
+    {"cmake", create_cmake<CMakeBuildSystem::Generator::Ninja>},
+    {"cmake-make", create_cmake<CMakeBuildSystem::Generator::Make>},
+    {"autotools", create<AutotoolsBuildSystem>},
+    {"simple", create<SimpleBuildSystem>},
+};
+
+} // namespace
+
+std::vector<std::string_view> build_system_names()
+{
+    auto names = BUILD_SYSTEMS | std::views::keys;
+    return {names.begin(), names.end()};
+}
+
 bool build_system_known(std::string_view name)
 {
-    return std::ranges::contains(BUILD_SYSTEMS, name);
+    return std::ranges::contains(BUILD_SYSTEMS | std::views::keys, name);
 }
 
 std::unique_ptr<BuildSystem> build_system_for(const std::string &name)
 {
-    if (name == "meson")
-        return std::make_unique<MesonBuildSystem>();
-    if (name == "cmake")
-        return std::make_unique<CMakeBuildSystem>(CMakeBuildSystem::Generator::Ninja);
-    if (name == "cmake-make")
-        return std::make_unique<CMakeBuildSystem>(CMakeBuildSystem::Generator::Make);
-    if (name == "autotools")
-        return std::make_unique<AutotoolsBuildSystem>();
-    if (name == "simple")
-        return std::make_unique<SimpleBuildSystem>();
+    for (const auto &[known, factory] : BUILD_SYSTEMS) {
+        if (known == name)
+            return factory();
+    }
     fail("unknown build system '{}'", name);
 }
 
@@ -44,6 +74,12 @@ std::string parallel_command(const std::vector<std::string> &argv, const std::ve
     if (!arguments.empty())
         line += " " + shell_join(arguments);
     return line + "\n";
+}
+
+std::string install_command(std::vector<std::string> argv, const Part &part)
+{
+    argv.insert(argv.end(), part.make_install_args.begin(), part.make_install_args.end());
+    return shell_join(argv) + "\n";
 }
 
 std::string part_build_script(

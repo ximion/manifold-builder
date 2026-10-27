@@ -199,13 +199,7 @@ std::string shell_quote(std::string_view argument)
 
 std::string shell_join(std::span<const std::string> argv)
 {
-    std::string line;
-    for (const auto &argument : argv) {
-        if (!line.empty())
-            line += ' ';
-        line += shell_quote(argument);
-    }
-    return line;
+    return join(argv | std::views::transform(shell_quote), " ");
 }
 
 std::string shell_lines(const std::vector<std::string> &commands)

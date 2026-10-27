@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <array>
 #include <initializer_list>
 #include <memory>
 #include <string>
@@ -19,11 +18,6 @@
 
 namespace mfb
 {
-
-/**
- * Source types we know how to fetch.
- */
-constexpr std::array<std::string_view, 5> SOURCE_TYPES = {"git", "archive", "file", "dir", "patch"};
 
 /**
  * Directories a source fetcher works with.

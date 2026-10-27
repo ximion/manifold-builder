@@ -254,7 +254,7 @@ void validate_parts(const Recipe &recipe, const auto &problem)
                 std::format(
                     "Part '{}': 'buildsystem' must be one of {}, not '{}'",
                     part->name,
-                    join(BUILD_SYSTEMS, ", "),
+                    join(build_system_names(), ", "),
                     part->buildsystem));
         if (part->buildsystem == "simple" && part->build_commands.empty())
             problem(std::format("part '{}' uses the simple build system, but has no build-commands", part->name));
@@ -410,7 +410,7 @@ void collect_to_build(
  */
 void merge_into(BuildSettings &merged, const BuildSettings &level)
 {
-    auto join = [](std::string &flags, const std::string &more) {
+    auto append = [](std::string &flags, const std::string &more) {
         if (more.empty())
             return;
         if (!flags.empty())
@@ -421,10 +421,10 @@ void merge_into(BuildSettings &merged, const BuildSettings &level)
         if (!more.empty())
             value = more;
     };
-    join(merged.cflags, level.cflags);
-    join(merged.cxxflags, level.cxxflags);
-    join(merged.cppflags, level.cppflags);
-    join(merged.ldflags, level.ldflags);
+    append(merged.cflags, level.cflags);
+    append(merged.cxxflags, level.cxxflags);
+    append(merged.cppflags, level.cppflags);
+    append(merged.ldflags, level.ldflags);
     for (const auto &[name, value] : level.env)
         merged.env[name] = value;
     replace(merged.prepend_path, level.prepend_path);

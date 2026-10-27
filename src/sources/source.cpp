@@ -25,25 +25,44 @@ namespace mfb
 
 quill::Logger *const logSources = log::logger("sources");
 
+namespace
+{
+
+using SourceFetcherFactory = std::unique_ptr<SourceFetcher> (*)();
+
+template<typename Fetcher>
+std::unique_ptr<SourceFetcher> create()
+{
+    return std::make_unique<Fetcher>();
+}
+
+/**
+ * Source types we know how to fetch.
+ */
+const std::pair<std::string_view, SourceFetcherFactory> SOURCE_TYPES[] = {
+    {"git", create<GitSource>},
+    {"archive", create<ArchiveSource>},
+    {"file", create<FileSource>},
+    {"dir", create<DirSource>},
+    {"patch", create<PatchSource>},
+};
+
+} // namespace
+
 std::unique_ptr<SourceFetcher> source_fetcher_for(const std::string &type)
 {
-    if (type == "git")
-        return std::make_unique<GitSource>();
-    if (type == "archive")
-        return std::make_unique<ArchiveSource>();
-    if (type == "file")
-        return std::make_unique<FileSource>();
-    if (type == "dir")
-        return std::make_unique<DirSource>();
-    if (type == "patch")
-        return std::make_unique<PatchSource>();
+    for (const auto &[known, factory] : SOURCE_TYPES) {
+        if (known == type)
+            return factory();
+    }
     fail("unknown source type '{}'", type);
 }
 
 std::string check_source(const Source &source)
 {
-    if (!std::ranges::contains(SOURCE_TYPES, source.type))
-        return std::format("source type must be one of {}, not '{}'", join(SOURCE_TYPES, ", "), source.type);
+    auto known = SOURCE_TYPES | std::views::keys;
+    if (!std::ranges::contains(known, source.type))
+        return std::format("source type must be one of {}, not '{}'", join(known, ", "), source.type);
     return source_fetcher_for(source.type)->check(source);
 }
 
