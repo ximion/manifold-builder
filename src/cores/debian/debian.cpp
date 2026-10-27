@@ -235,7 +235,7 @@ void DebianSystem::bootstrap(Script &s, const fs::path &rootfs, const Recipe &re
 
 void DebianSystem::refresh(Script &s, const fs::path &tree) const
 {
-    s.line(std::format("echo {} > {}", m_epoch, shell_quote((tree / "debuerreotype-epoch").string())));
+    write_epoch_marker(s, tree);
     apt_get(s, tree, {"update", "-qq"});
 }
 
@@ -271,10 +271,8 @@ fi
 )sh",
         dir,
         multiarch());
-    std::vector<std::string> chroot = {
-        script("debuerreotype-chroot"), tree.string(), "bash", "-Eeuo", "pipefail", "-c", scan};
-    s.line(std::format("echo {} > {}", m_epoch, shell_quote((tree / "debuerreotype-epoch").string())));
-    s.line(std::format("{} > {}", shell_join(chroot), shell_quote(output.string())));
+    write_epoch_marker(s, tree);
+    s.line(std::format("{} > {}", shell_join(chroot_command(tree, scan)), shell_quote(output.string())));
 }
 
 std::vector<std::string> DebianSystem::read_linked_packages(const fs::path &output) const
@@ -324,7 +322,17 @@ export DEBIAN_FRONTEND=noninteractive
 {}
 )sh",
         command);
-    s.run({script("debuerreotype-chroot"), tree.string(), "bash", "-Eeuo", "pipefail", "-c", text});
+    s.run(chroot_command(tree, text));
+}
+
+std::vector<std::string> DebianSystem::chroot_command(const fs::path &tree, const std::string &commands) const
+{
+    return {script("debuerreotype-chroot"), tree.string(), "bash", "-Eeuo", "pipefail", "-c", commands};
+}
+
+void DebianSystem::write_epoch_marker(Script &s, const fs::path &tree) const
+{
+    s.line(std::format("echo {} > {}", m_epoch, shell_quote((tree / "debuerreotype-epoch").string())));
 }
 
 void DebianSystem::slimify(Script &s, const fs::path &rootfs, const std::vector<std::string> &locales) const
@@ -397,9 +405,7 @@ void DebianSystem::finalize(Script &s, const fs::path &rootfs) const
 
 void DebianSystem::normalize(Script &s, const fs::path &tree) const
 {
-    // debuerreotype-fixup reads the epoch from a marker that only the
-    // bootstrapped tree has
-    s.line(std::format("echo {} > {}", m_epoch, shell_quote((tree / "debuerreotype-epoch").string())));
+    write_epoch_marker(s, tree);
     s.run({script("debuerreotype-fixup"), tree.string()});
 }
 
