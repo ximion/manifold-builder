@@ -184,11 +184,6 @@ private:
         return m_work / "stage" / "app-sdk";
     }
 
-    fs::path dependencies_dump() const
-    {
-        return m_work / "sdk-depends.txt";
-    }
-
     /**
      * Mount the stack's images, then an overlay for `layer` over `lowers`.
      */
@@ -210,15 +205,10 @@ private:
     void install_sdk()
     {
         log::section_box("SDK Packages");
-        auto development = m_system->development_packages(m_recipe);
         Script s;
         mount_layers(s, "kit-sdk", sdk_lowers());
         m_system->refresh(s, merged("kit-sdk"));
-        if (!development.empty()) {
-            s.step("Resolving the development packages", [&] {
-                m_system->dump_dependencies(s, merged("kit-sdk"), development, dependencies_dump());
-            });
-        }
+        dump_development_dependencies(s, merged("kit-sdk"));
         install_packages(s, merged("kit-sdk"), m_system->packages_request_sdk(m_recipe), "Installing SDK packages");
 
         // the kit goes between this layer and the lower SDKs, so it must not hide
@@ -237,7 +227,7 @@ private:
     void install_kit()
     {
         log::section_box("Kit Packages");
-        auto packages = m_system->packages_request_runtime(m_recipe, dependencies_dump());
+        auto packages = runtime_packages();
         LOG_INFO(logBuild, "Installing {} packages...", packages.size());
         Script s;
         mount_layers(s, "kit", runtime_lowers());

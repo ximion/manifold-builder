@@ -72,10 +72,6 @@ private:
     {
         return m_work / "sdk" / name;
     }
-    fs::path dependencies_dump() const
-    {
-        return m_work / "sdk-depends.txt";
-    }
 
     // --- stage 1: bootstrap ------------------------------------------------
 
@@ -87,12 +83,7 @@ private:
             m_system->bootstrap(s, rootfs(), m_recipe);
         });
         // the dependencies of requested development packages decide what goes into the runtime
-        auto development = m_system->development_packages(m_recipe);
-        if (!development.empty()) {
-            s.step("Resolving the development packages", [&] {
-                m_system->dump_dependencies(s, rootfs(), development, dependencies_dump());
-            });
-        }
+        dump_development_dependencies(s, rootfs());
         m_sandbox.run(s);
         check_merged_usr(rootfs());
     }
@@ -102,7 +93,7 @@ private:
     void install_runtime()
     {
         log::section_box("Runtime packages");
-        auto packages = m_system->packages_request_runtime(m_recipe, dependencies_dump());
+        auto packages = runtime_packages();
         LOG_INFO(logBuild, "Installing {} packages...", packages.size());
         Script s;
         install_packages(s, rootfs(), packages, "Installing packages");

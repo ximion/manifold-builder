@@ -183,6 +183,26 @@ std::string arch_name_for_filename(std::string_view architecture)
     return name;
 }
 
+std::string image_file_name(
+    std::string_view component,
+    std::string_view version,
+    int64_t revision,
+    std::string_view architecture,
+    std::string_view extension)
+{
+    return std::format("{}_{}-{}_{}{}", component, version, revision, arch_name_for_filename(architecture), extension);
+}
+
+std::string image_file_name(const Manifest &manifest, std::string_view extension)
+{
+    return image_file_name(manifest.component, manifest.version, manifest.revision, manifest.architecture, extension);
+}
+
+std::string bundle_file_name(std::string_view component, std::string_view version, std::string_view architecture)
+{
+    return std::format("{}_{}_{}.manifold", component, version, arch_name_for_filename(architecture));
+}
+
 std::string to_json(const Manifest &manifest)
 {
     auto json = glz::write<glz::opts{.prettify = true}>(manifest);

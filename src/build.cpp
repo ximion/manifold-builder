@@ -159,9 +159,7 @@ void Build::setup()
         m_system->describe_core(m_build_info);
 
     m_output = fs::absolute(m_options.output.value_or(
-        fs::current_path()
-        / std::format(
-            "{}_{}_{}.manifold", m_recipe.component, m_recipe.version, arch_name_for_filename(m_architecture))));
+        fs::current_path() / bundle_file_name(m_recipe.component, m_recipe.version, m_architecture)));
     fs::create_directories(m_output.parent_path());
     prepare_work_dir();
     LOG_DEBUG(logBuild, "Work directory {}", m_work.string());
@@ -245,6 +243,26 @@ void Build::install_packages(
     s.run({"umount", mountpoint.string()});
 }
 
+fs::path Build::dependencies_dump() const
+{
+    return m_work / "sdk-depends.txt";
+}
+
+void Build::dump_development_dependencies(Script &s, const fs::path &tree) const
+{
+    auto development = m_system->development_packages(m_recipe);
+    if (development.empty())
+        return;
+    s.step("Resolving the development packages", [&] {
+        m_system->dump_dependencies(s, tree, development, dependencies_dump());
+    });
+}
+
+std::vector<std::string> Build::runtime_packages() const
+{
+    return m_system->packages_request_runtime(m_recipe, dependencies_dump());
+}
+
 void Build::run_actions(Script &s, Stage stage, const fs::path &tree) const
 {
     for (const auto &action : m_recipe.actions) {
@@ -269,10 +287,10 @@ void Build::fetch_sources()
         {.scratch = m_work / "fetch", .cache = m_cache, .skip = {m_work, m_output, m_cache}});
 }
 
-std::vector<std::pair<std::string, std::string>> Build::part_environment(const Part &part, const InstallTarget &target)
-    const
+std::vector<std::pair<std::string, std::string>> Build::part_environment(
+    const BuildSettings &settings,
+    const InstallTarget &target) const
 {
-    auto settings = merge_build_settings(m_recipe, part, m_architecture);
     std::vector<std::pair<std::string, std::string>> env = {
         {"MANIFOLD_DEST", target.prefix},
         {"MANIFOLD_ID", m_recipe.component},
@@ -311,22 +329,29 @@ fs::path Build::part_stage(const Part &part) const
     return m_work / "parts" / part.name;
 }
 
+fs::path Build::part_sources(const Part &part) const
+{
+    return m_work / "sources" / part.name;
+}
+
+fs::path Build::part_file(const Part &part, std::string_view suffix) const
+{
+    return m_work / "parts" / (part.name + std::string(suffix));
+}
+
 PartBuild Build::part_build(const Part &part, const fs::path &root, const InstallTarget &target) const
 {
+    auto settings = merge_build_settings(m_recipe, part, m_architecture);
     return {
         .root = root,
-        .sources = m_work / "sources" / part.name,
+        .sources = part_sources(part),
         .name = part.name,
         .subdir = part.subdir,
         .epoch = m_epoch,
         .binds = {},
-        .env = part_environment(part, target),
-        .script = part_build_script(
-            part,
-            target,
-            merge_build_settings(m_recipe, part, m_architecture),
-            m_work / "sources" / part.name / part.subdir),
-        .script_file = m_work / "parts" / (part.name + ".sh"),
+        .env = part_environment(settings, target),
+        .script = part_build_script(part, target, settings, part_sources(part) / part.subdir),
+        .script_file = part_file(part, ".sh"),
     };
 }
 
@@ -337,7 +362,7 @@ void Build::build_parts(Script &s, const fs::path &root, const InstallTarget &ta
             std::format(
                 "find {} -mindepth 1 ! -type d -printf '%P\\n' | sort > {}",
                 shell_quote(prefix_dir.string()),
-                shell_quote((m_work / "parts" / (part.name + std::string(suffix))).string())));
+                shell_quote(part_file(part, suffix).string())));
     };
 
     s.run({"mkdir", "-p", (m_work / "parts").string()});
@@ -411,10 +436,10 @@ void Build::install_stages(Script &s, const fs::path &tree) const
 
 std::vector<std::string> Build::files_added(const Part &part) const
 {
-    auto before_lines = read_lines(m_work / "parts" / (part.name + ".before"));
+    auto before_lines = read_lines(part_file(part, ".before"));
     std::set<std::string> before(before_lines.begin(), before_lines.end());
     std::vector<std::string> added;
-    for (auto &path : read_lines(m_work / "parts" / (part.name + ".after"))) {
+    for (auto &path : read_lines(part_file(part, ".after"))) {
         if (!before.contains(path))
             added.push_back(std::move(path));
     }
@@ -639,22 +664,11 @@ void Build::pack(Script &s, const Output &output) const
     excludes.insert(excludes.end(), more.begin(), more.end());
     s.run(mkfs_erofs_command(
         output.tree,
-        m_work / image_name(output.manifest, ".erofs"),
+        m_work / image_file_name(output.manifest, ".erofs"),
         m_epoch,
         m_recipe.image,
         image_uuid(output.manifest.content_hash),
         excludes));
-}
-
-std::string Build::image_name(const Manifest &manifest, std::string_view extension) const
-{
-    return std::format(
-        "{}_{}-{}_{}{}",
-        manifest.component,
-        manifest.version,
-        manifest.revision,
-        arch_name_for_filename(manifest.architecture),
-        extension);
 }
 
 const Output &Build::output(std::string_view stem) const
@@ -671,8 +685,8 @@ fs::path Build::make_images()
     log::section_box("Images");
     std::vector<BundleEntry> entries;
     for (const auto &output : m_outputs) {
-        auto raw = m_work / image_name(output.manifest, ".raw");
-        auto erofs = m_work / image_name(output.manifest, ".erofs");
+        auto raw = m_work / image_file_name(output.manifest, ".raw");
+        auto erofs = m_work / image_file_name(output.manifest, ".erofs");
         auto uuid = image_uuid(output.manifest.content_hash);
         auto layout = make_ddi(erofs, raw, m_epoch, m_architecture, uuid, m_work / raw.stem());
 
@@ -698,7 +712,7 @@ fs::path Build::make_images()
                     .uuid = uuid,
                 },
         };
-        auto json = m_work / image_name(output.manifest, ".manifold.json");
+        auto json = m_work / image_file_name(output.manifest, ".manifold.json");
         write_manifest(record, json);
         LOG_INFO(
             logBuild,

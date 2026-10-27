@@ -150,6 +150,29 @@ struct Manifest {
  */
 std::string arch_name_for_filename(std::string_view architecture);
 
+/**
+ * Get the file name of an image, or of a file that belongs to it:
+ * "<component>_<version>-<revision>_<architecture><extension>".
+ * Unlike the bundle name, it includes the revision.
+ */
+std::string image_file_name(
+    std::string_view component,
+    std::string_view version,
+    int64_t revision,
+    std::string_view architecture,
+    std::string_view extension);
+
+/**
+ * Get the file name of the image a manifest describes, or of a file that
+ * belongs to it.
+ */
+std::string image_file_name(const Manifest &manifest, std::string_view extension);
+
+/**
+ * Get the file name of a bundle: "<component>_<version>_<architecture>.manifold".
+ */
+std::string bundle_file_name(std::string_view component, std::string_view version, std::string_view architecture);
+
 std::string to_json(const Manifest &manifest);
 Manifest manifest_from_json(std::string_view json, std::string_view origin);
 

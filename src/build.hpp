@@ -100,6 +100,19 @@ protected:
         const;
 
     /**
+     * Add a step that dumps the dependencies of the recipe's development
+     * packages, as `tree` resolves them, if it has any. runtime_packages()
+     * reads the dump.
+     */
+    void dump_development_dependencies(Script &s, const fs::path &tree) const;
+
+    /**
+     * Get the packages a runtime needs: the recipe's own and those the
+     * recipe's development packages depend on.
+     */
+    std::vector<std::string> runtime_packages() const;
+
+    /**
      * Run the recipe's actions for one stage.
      * `tree` is the image tree as seen from inside the namespace.
      */
@@ -175,13 +188,6 @@ protected:
     std::vector<std::string> source_lines() const;
 
     /**
-     * Get the file name of an image inside the bundle:
-     * "<component>_<version>-<revision>_<architecture><extension>".
-     * Unlike the bundle name, it includes the revision.
-     */
-    std::string image_name(const Manifest &manifest, std::string_view extension) const;
-
-    /**
      * Find a registered output by its stem.
      */
     const Output &output(std::string_view stem) const;
@@ -215,8 +221,18 @@ private:
      * use any other directory that is not empty.
      */
     void prepare_work_dir();
-    std::vector<std::pair<std::string, std::string>> part_environment(const Part &part, const InstallTarget &target)
-        const;
+    fs::path dependencies_dump() const;
+    std::vector<std::pair<std::string, std::string>> part_environment(
+        const BuildSettings &settings,
+        const InstallTarget &target) const;
+    /**
+     * Get the directory a part's sources are fetched into.
+     */
+    fs::path part_sources(const Part &part) const;
+    /**
+     * Get a file we keep about a part next to its stage, e.g. its build script.
+     */
+    fs::path part_file(const Part &part, std::string_view suffix) const;
     /**
      * Get the sandbox of a part's build over `root`, without anything to
      * install into.

@@ -176,12 +176,8 @@ LayerImages find_bundled(
     layer.runtime = *best;
     layer.runtime_image = dir / best->image->file;
     auto sdk_manifest = dir
-                        / std::format(
-                            "{}.sdk_{}-{}_{}.manifold.json",
-                            component,
-                            best->version,
-                            best->revision,
-                            arch_name_for_filename(best->architecture));
+                        / image_file_name(
+                            component + ".sdk", best->version, best->revision, best->architecture, ".manifold.json");
     auto sdk = read_manifest(sdk_manifest);
     if (!sdk || !is_layer(*sdk, component + ".sdk", true))
         fail("{} {} has no SDK manifest at {}", component, best->version, sdk_manifest.string());

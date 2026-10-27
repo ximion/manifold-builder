@@ -87,6 +87,17 @@ TEST_CASE("Manifold refuses invalid hashes, so they are never written", "[manife
     CHECK(!fs::exists(dir / "manifest.json"));
 }
 
+TEST_CASE("file names of images and bundles", "[manifest]")
+{
+    CHECK(
+        image_file_name("net.debian.core13.sdk", "13.1", 22880949, "x86_64", ".raw")
+        == "net.debian.core13.sdk_13.1-22880949_x86-64.raw");
+    Manifest manifest{.component = "a", .version = "1", .revision = 2, .architecture = "aarch64"};
+    CHECK(image_file_name(manifest, ".manifold.json") == "a_1-2_aarch64.manifold.json");
+    // a bundle is named without the revision
+    CHECK(bundle_file_name("com.example.App", "1.0", "x86_64") == "com.example.App_1.0_x86-64.manifold");
+}
+
 TEST_CASE("manifests round-trip through JSON", "[manifest]")
 {
     Manifest manifest;
