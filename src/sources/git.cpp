@@ -11,12 +11,6 @@
 #include "logging.hpp"
 #include "process.hpp"
 
-#include <cerrno>
-#include <cstring>
-#include <fcntl.h>
-#include <sys/file.h>
-#include <unistd.h>
-
 namespace mfb
 {
 
@@ -31,35 +25,6 @@ std::string GitSource::check(const Source &source) const
 
 namespace
 {
-
-/**
- * An exclusive lock on a file, held while the object lives.
- */
-class FileLock
-{
-public:
-    explicit FileLock(const fs::path &path)
-        : m_fd(open(path.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644))
-    {
-        if (m_fd >= 0 && flock(m_fd, LOCK_EX) == 0)
-            return;
-        auto error = errno;
-        if (m_fd >= 0)
-            close(m_fd);
-        fail("Cannot lock {}: {}", path.string(), std::strerror(error));
-    }
-
-    ~FileLock()
-    {
-        close(m_fd);
-    }
-
-    FileLock(const FileLock &) = delete;
-    FileLock &operator=(const FileLock &) = delete;
-
-private:
-    int m_fd;
-};
 
 /**
  * Create or update the bare mirror of a git source.

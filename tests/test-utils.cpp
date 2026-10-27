@@ -114,6 +114,21 @@ TEST_CASE("whole strings are parsed as integers", "[utils]")
     CHECK(!parse_int("99999999999999999999"));
 }
 
+TEST_CASE("file locks", "[utils]")
+{
+    TempDir dir("lock");
+    {
+        FileLock held(dir / "file.lock");
+        CHECK(!FileLock::try_lock(dir / "file.lock"));
+    }
+    CHECK(FileLock::try_lock(dir / "file.lock"));
+    // a directory is locked itself
+    auto work = FileLock::try_lock(dir.path());
+    REQUIRE(work);
+    CHECK(!FileLock::try_lock(dir.path()));
+    CHECK_THROWS_AS(FileLock(dir / "missing/file.lock"), BuildError);
+}
+
 TEST_CASE("a program that can not be started is named with the reason", "[utils]")
 {
     TempDir dir("spawn");

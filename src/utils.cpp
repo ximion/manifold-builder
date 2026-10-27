@@ -13,10 +13,14 @@
 #include <charconv>
 #include <chrono>
 #include <cstring>
+#include <fcntl.h>
 #include <format>
 #include <fstream>
 #include <set>
+#include <sys/file.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <utility>
 
 namespace mfb
 {
@@ -83,6 +87,20 @@ bool is_below(const fs::path &relative, const std::set<std::string> &dirs)
     });
 }
 
+/**
+ * Open a path for FileLock, creating a missing one as a file.
+ */
+int open_for_lock(const fs::path &path)
+{
+    // flock() needs no write access, and O_CREAT fails on a directory
+    std::error_code error;
+    int flags = fs::is_directory(path, error) ? O_DIRECTORY : O_CREAT;
+    int fd = open(path.c_str(), O_RDONLY | O_CLOEXEC | flags, 0644);
+    if (fd < 0)
+        fail("Cannot lock {}: {}", path.string(), std::strerror(errno));
+    return fd;
+}
+
 } // namespace
 
 std::string_view trim(std::string_view text)
@@ -125,6 +143,45 @@ void touch(const fs::path &path)
 {
     std::error_code error;
     fs::last_write_time(path, fs::file_time_type::clock::now(), error);
+}
+
+FileLock::FileLock(int fd)
+    : m_fd(fd)
+{
+}
+
+FileLock::FileLock(const fs::path &path)
+    : FileLock(open_for_lock(path))
+{
+    if (flock(m_fd, LOCK_EX) != 0)
+        fail("Cannot lock {}: {}", path.string(), std::strerror(errno));
+}
+
+std::optional<FileLock> FileLock::try_lock(const fs::path &path)
+{
+    FileLock lock(open_for_lock(path));
+    if (flock(lock.m_fd, LOCK_EX | LOCK_NB) == 0)
+        return lock;
+    if (errno == EWOULDBLOCK)
+        return std::nullopt;
+    fail("Cannot lock {}: {}", path.string(), std::strerror(errno));
+}
+
+FileLock::FileLock(FileLock &&other) noexcept
+    : m_fd(std::exchange(other.m_fd, -1))
+{
+}
+
+FileLock &FileLock::operator=(FileLock &&other) noexcept
+{
+    std::swap(m_fd, other.m_fd);
+    return *this;
+}
+
+FileLock::~FileLock()
+{
+    if (m_fd >= 0)
+        close(m_fd);
 }
 
 std::optional<int64_t> parse_int(std::string_view text)

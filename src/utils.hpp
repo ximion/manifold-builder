@@ -79,6 +79,38 @@ void write_file(const fs::path &path, std::string_view content);
 void touch(const fs::path &path);
 
 /**
+ * An exclusive lock on a file or directory, held while the object lives.
+ *
+ * A missing path is created as a file.
+ */
+class FileLock
+{
+public:
+    /**
+     * Wait for the lock on `path`, or fail the build if it can not be taken.
+     */
+    explicit FileLock(const fs::path &path);
+
+    /**
+     * Take the lock on `path` if nobody else holds it, or return nothing.
+     * Other errors fail the build.
+     */
+    static std::optional<FileLock> try_lock(const fs::path &path);
+
+    FileLock(FileLock &&other) noexcept;
+    FileLock &operator=(FileLock &&other) noexcept;
+    ~FileLock();
+
+    FileLock(const FileLock &) = delete;
+    FileLock &operator=(const FileLock &) = delete;
+
+private:
+    explicit FileLock(int fd);
+
+    int m_fd;
+};
+
+/**
  * Parse a whole string as a decimal integer, or return nothing.
  */
 std::optional<int64_t> parse_int(std::string_view text);

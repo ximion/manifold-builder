@@ -18,19 +18,14 @@
 #include "sources/source.hpp"
 
 #include <algorithm>
-#include <cerrno>
 #include <chrono>
-#include <cstring>
 #include <ctime>
-#include <fcntl.h>
 #include <fnmatch.h>
 #include <manifold.h>
 #include <ranges>
 #include <set>
-#include <sys/file.h>
 #include <sys/stat.h>
 #include <thread>
-#include <unistd.h>
 
 namespace mfb
 {
@@ -131,11 +126,7 @@ Build::Build(const Recipe &recipe, const fs::path &recipe_file, const BuildOptio
 {
 }
 
-Build::~Build()
-{
-    if (m_work_lock >= 0)
-        close(m_work_lock);
-}
+Build::~Build() = default;
 
 fs::path Build::run()
 {
@@ -228,14 +219,9 @@ void Build::prepare_work_dir()
             m_work.string(),
             error.message());
 
-    m_work_lock = open(m_work.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-    if (m_work_lock < 0)
-        fail("Cannot open the work directory {}: {}", m_work.string(), std::strerror(errno));
-    if (flock(m_work_lock, LOCK_EX | LOCK_NB) != 0) {
-        if (errno == EWOULDBLOCK)
-            fail("The work directory {} is in use by another build", m_work.string());
-        fail("Cannot lock the work directory {}: {}", m_work.string(), std::strerror(errno));
-    }
+    m_work_lock = FileLock::try_lock(m_work);
+    if (!m_work_lock)
+        fail("The work directory {} is in use by another build", m_work.string());
 
     auto gitignore = m_work / ".gitignore";
     if (!fs::is_empty(m_work)) {
@@ -816,14 +802,14 @@ size_t prune_cache(const fs::path &cache, std::chrono::seconds unused)
         auto name = mirror;
         if (name.extension() == ".part")
             name.replace_extension();
-        auto lock_file = name.string() + ".lock";
-        int lock = open(lock_file.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
-        if (lock < 0)
-            continue;
-        // another build may have used the mirror in the meantime
-        if (flock(lock, LOCK_EX | LOCK_NB) == 0 && is_unused(mirror))
-            remove(mirror);
-        close(lock);
+        try {
+            // another build may have used the mirror in the meantime
+            auto lock = FileLock::try_lock(name.string() + ".lock");
+            if (lock && is_unused(mirror))
+                remove(mirror);
+        } catch (const BuildError &error) {
+            LOG_WARNING(logBuild, "Cannot remove {} from the cache: {}", mirror.string(), error.what());
+        }
     }
     return removed;
 }

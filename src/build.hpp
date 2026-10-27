@@ -198,8 +198,8 @@ protected:
     BuildInfo m_build_info;
     fs::path m_output;
     fs::path m_work;
-    fs::path m_cache;     ///< Downloads, git mirrors and packages, in the work dir without a cache
-    int m_work_lock = -1; ///< Locked descriptor of m_work, so builds can not share it
+    fs::path m_cache;                    ///< Downloads, git mirrors and packages, in the work dir without a cache
+    std::optional<FileLock> m_work_lock; ///< Lock on m_work, so builds can not share it
     Sandbox m_sandbox;
 
     std::vector<SourceRecord> m_sources;
