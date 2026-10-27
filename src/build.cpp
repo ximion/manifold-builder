@@ -581,7 +581,7 @@ fs::path Build::generate_metainfo_file(const Output &output, const std::map<std:
         auto runtime = placed.find(runtime_id);
         if (runtime == placed.end())
             fail("internal: The MetaInfo of {} is not known yet", runtime_id);
-        info = sdk_metainfo(manifest, parse_metainfo(read_file(runtime->second)));
+        info = sdk_metainfo(manifest, runtime_id, parse_metainfo(read_file(runtime->second)));
     } else {
         info = metainfo(manifest);
         if (info.name.empty() || info.summary.empty())
@@ -596,12 +596,13 @@ fs::path Build::generate_metainfo_file(const Output &output, const std::map<std:
     return file;
 }
 
-MetaInfo Build::sdk_metainfo(const Manifest &manifest, const MetaInfo &runtime) const
+MetaInfo Build::sdk_metainfo(const Manifest &manifest, const std::string &runtime_id, const MetaInfo &runtime) const
 {
+    // an app's SDK sits on the kit SDK, but belongs to the app
     return MetaInfo{
         .id = manifest.component,
         .kind = "addon",
-        .extends = manifest.base->component,
+        .extends = runtime_id,
         .name = runtime.name + " (SDK)",
         .summary = "Development files for " + runtime.name,
         .project_license = runtime.project_license,

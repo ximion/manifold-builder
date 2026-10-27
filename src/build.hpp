@@ -245,9 +245,10 @@ private:
      */
     fs::path generate_metainfo_file(const Output &output, const std::map<std::string, fs::path> &placed) const;
     /**
-     * Generate the MetaInfo data for an SDK from the MetaInfo of its runtime or app.
+     * Generate the MetaInfo data for an SDK from the MetaInfo of the runtime
+     * or app `runtime_id`, which it extends.
      */
-    MetaInfo sdk_metainfo(const Manifest &manifest, const MetaInfo &runtime) const;
+    MetaInfo sdk_metainfo(const Manifest &manifest, const std::string &runtime_id, const MetaInfo &runtime) const;
     /**
      * Get the path of an output's MetaInfo file in its tree,
      * "<prefix>/share/metainfo/<component>.metainfo.xml".

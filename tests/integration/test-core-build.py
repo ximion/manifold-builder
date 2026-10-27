@@ -280,9 +280,12 @@ def test_app_metainfo_file(builder, core, tmp_path):
     assert app_sdk['base']['component'] == kit_sdk['component']
     # the kit SDK installs nothing, but keeps the package database of the core SDK
     assert 'libzstd-dev' in kit_sdk['packages']['apt']
+    # and the app SDK lists what it builds against
+    assert app_sdk['packages'] == kit_sdk['packages']
     sdk_tree = bundle.extract(app_sdk)
     assert (sdk_tree / 'app/share/hello/sdk-only.txt').is_file()
     # the app SDK's MetaInfo is generated from the app's
     sdk_metainfo = (sdk_tree / 'app/share/metainfo/com.example.Hello.sdk.metainfo.xml').read_text()
     assert '<name>Hello (SDK)</name>' in sdk_metainfo
-    assert f'<extends>{kit_sdk["component"]}</extends>' in sdk_metainfo
+    # but it belongs to the app
+    assert '<extends>com.example.Hello</extends>' in sdk_metainfo
