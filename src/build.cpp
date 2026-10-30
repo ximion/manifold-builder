@@ -561,8 +561,8 @@ void Build::pack_outputs()
     Script s;
     for (const auto &output : m_outputs) {
         const auto &manifest = output.manifest;
-        auto custom = manifold_custom(manifest.architecture, manifest.component, manifest.version);
-        catalog.add_tree(output.tree, manifest.kind == "app" ? "/app" : "/usr", manifest.component, custom);
+        auto bundle_id = manifold_bundle_id(manifest.architecture, manifest.component, manifest.version);
+        catalog.add_tree(output.tree, manifest.kind == "app" ? "/app" : "/usr", manifest.component, bundle_id);
         install_manifest(s, output);
         pack(s, output);
     }

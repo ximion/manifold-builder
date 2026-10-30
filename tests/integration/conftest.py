@@ -67,7 +67,7 @@ class Bundle:
             catalog = ElementTree.fromstring(archive.read('catalog/manifold-local.xml'))
         assert catalog.get('origin') == 'manifold-local'
         for component in catalog.iter('component'):
-            if component.findtext("custom/value[@key='manifold.id']") == ref:
+            if component.findtext("bundle[@type='manifold']") == ref:
                 return ElementTree.tostring(component, encoding='unicode')
         pytest.fail(f'the catalog does not describe {ref}')
 

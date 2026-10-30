@@ -71,7 +71,7 @@ fs::path make_test_bundle(const fs::path &dir, const std::optional<fs::path> &ke
   <component type="generic">
     <id>a</id>
     <name>a</name>
-    <custom><value key="manifold.id">x86_64/a/1</value></custom>
+    <bundle type="manifold">x86_64/a/1</bundle>
   </component>
 </components>
 )");

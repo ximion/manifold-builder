@@ -8,7 +8,6 @@
 
 #include "utils.hpp"
 
-#include <map>
 #include <string>
 #include <vector>
 
@@ -61,11 +60,10 @@ std::vector<MetaInfoIssue> validate_metainfo(const std::string &xml);
 MetaInfo parse_metainfo(const std::string &xml);
 
 /**
- * Get the "manifold.id" <custom> value that names the component to install,
+ * Get the ID of the Manifold bundle that names the image to install,
  * as "<architecture>/<component>/<version>".
- * FIXME: This is a placeholder until AppStream has a <bundle/> kind for Manifold.
  */
-std::map<std::string, std::string> manifold_custom(
+std::string manifold_bundle_id(
     const std::string &architecture,
     const std::string &component,
     const std::string &version);
@@ -84,15 +82,15 @@ public:
     /**
      * Run appstream-compose on an image tree with the given prefix,
      * add the component `component_id` with its icons and screenshots,
-     * and with the `custom` values. All other components of the tree
-     * that don't match the component ID are ignored.
+     * and name its image with the Manifold bundle `bundle_id`. All other
+     * components of the tree that don't match the component ID are ignored.
      * Fails the build if the tree has no such component.
      */
     void add_tree(
         const fs::path &tree,
         const std::string &prefix,
         const std::string &component_id,
-        const std::map<std::string, std::string> &custom);
+        const std::string &bundle_id);
 
     /**
      * Write the catalog XML and return its path.

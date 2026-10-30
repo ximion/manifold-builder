@@ -23,8 +23,8 @@ add_project_arguments(
 #
 # Dependencies
 #
-appstream_dep = dependency('appstream', version: '>= 1.2.0')
-ascompose_dep = dependency('appstream-compose', version: '>= 1.2.0')
+appstream_dep = dependency('appstream', version: '>= 1.2.2')
+ascompose_dep = dependency('appstream-compose', version: '>= 1.2.2')
 quill_dep     = dependency('quill', version: '>= 11.1', fallback: ['quill', 'quill_dep']).as_system()
 blake3_dep    = dependency('libblake3', required: true)
 zip_dep       = dependency('libzip', required: true)

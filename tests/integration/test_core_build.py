@@ -203,7 +203,7 @@ def test_core(core):
     ).read_text()
     assert '<name>Test Core (SDK)</name>' in sdk_metainfo
     assert '<extends>com.example.testcore</extends>' in sdk_metainfo
-    assert 'manifold.id' not in sdk_metainfo
+    assert '<bundle' not in sdk_metainfo
     assert '<name>Test Core (SDK)</name>' in core.component(sdk)
     assert (sdk_tree / 'usr/include/zstd.h').is_file()
 
@@ -232,7 +232,7 @@ def test_platform_and_app(builder, core, tmp_path):
         platform.extract(runtime) / 'usr/share/metainfo/com.example.testcore.jpeg.metainfo.xml'
     ).read_text()
     assert '<name>JPEG Platform</name>' in metainfo
-    assert 'manifold.id' not in metainfo
+    assert '<bundle' not in metainfo
     # the part goes to the platform, its header to the platform's SDK
     assert (platform.extract(runtime) / 'usr/share/jpeg-platform/data.txt').is_file()
     assert not (platform.extract(runtime) / 'usr/include').exists()

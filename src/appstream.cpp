@@ -149,7 +149,7 @@ void AppStreamCatalog::add_tree(
     const fs::path &tree,
     const std::string &prefix,
     const std::string &component_id,
-    const std::map<std::string, std::string> &custom)
+    const std::string &bundle_id)
 {
     // we cache every icon size, a repository can still serve them remotely
     g_autoptr(AscIconPolicy) icon_policy = asc_icon_policy_new();
@@ -204,8 +204,16 @@ void AppStreamCatalog::add_tree(
         AsComponent *cpt = asc_result_get_component(result, component_id.c_str());
         if (cpt == nullptr)
             continue;
-        for (const auto &[key, value] : custom)
-            as_component_insert_custom_value(cpt, key.c_str(), value.c_str());
+
+        // NOTE: Compose drops the bundle of a unit as of AppStream 1.2.2, so we can
+        // not use asc_unit_set_bundle_id() and have to add the bundle on our own.
+        // MetaInfo may ship bundles too, but only ours can name the image.
+        g_ptr_array_set_size(as_component_get_bundles(cpt), 0);
+        g_autoptr(AsBundle) bundle = as_bundle_new();
+        as_bundle_set_kind(bundle, AS_BUNDLE_KIND_MANIFOLD);
+        as_bundle_set_id(bundle, bundle_id.c_str());
+        as_component_add_bundle(cpt, bundle);
+
         as_metadata_add_component(m_metadata, cpt);
         return;
     }
@@ -223,12 +231,12 @@ fs::path AppStreamCatalog::write() const
     return file;
 }
 
-std::map<std::string, std::string> manifold_custom(
+std::string manifold_bundle_id(
     const std::string &architecture,
     const std::string &component,
     const std::string &version)
 {
-    return {{"manifold.id", std::format("{}/{}/{}", architecture, component, version)}};
+    return std::format("{}/{}/{}", architecture, component, version);
 }
 
 std::vector<MetaInfoIssue> validate_metainfo(const std::string &xml)
