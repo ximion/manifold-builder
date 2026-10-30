@@ -42,7 +42,8 @@ mfbuilder_dep = declare_dependency(
     dependencies : [
         glaze_dep,
         glib_dep,
-        manifold_dep
+        manifold_dep,
+        quill_dep
     ],
 )
 

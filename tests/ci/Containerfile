@@ -1,0 +1,25 @@
+# Copyright (C) 2025-2026 Matthias Klumpp <matthias@tenstral.net>
+#
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# The image the CI builds and tests manifold-builder in: the image of a
+# distribution, with everything building and testing needs installed. The
+# container has to be privileged, for the tests to create user namespaces and
+# mount in them.
+#
+# To reproduce a CI job locally, from the root of the source tree:
+#
+#   sudo podman build --build-arg BASE_IMAGE=docker.io/library/debian:testing \
+#       -t manifold-builder-ci:debian-testing -f tests/ci/Containerfile tests/ci
+#   sudo podman run --rm --privileged -v "$PWD:/src:Z" -w /src \
+#       -e CI_INTEGRATION=true manifold-builder-ci:debian-testing \
+#       tests/ci/build-and-test.sh
+#
+# Only the unit tests work with rootless podman: the integration tests build
+# in user namespaces, which need more IDs than a rootless container has.
+
+ARG BASE_IMAGE=docker.io/library/debian:testing
+FROM ${BASE_IMAGE}
+
+COPY install-deps.sh /tmp/install-deps.sh
+RUN /tmp/install-deps.sh && rm /tmp/install-deps.sh

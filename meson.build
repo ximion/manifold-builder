@@ -23,12 +23,21 @@ add_project_arguments(
 #
 # Dependencies
 #
-appstream_dep = dependency('appstream', version: '>= 1.2.2')
+appstream_dep = dependency('appstream', version: '>= 1.2.2', default_options: [
+    'bash-completion=false',
+    'compose=true',
+    'display-detection=none',
+    'gir=false',
+    'man=false',
+    'docs=false',
+    'stemming=false',
+    'tools=false',
+])
 ascompose_dep = dependency('appstream-compose', version: '>= 1.2.2')
 quill_dep     = dependency('quill', version: '>= 11.1', fallback: ['quill', 'quill_dep']).as_system()
 blake3_dep    = dependency('libblake3', required: true)
 zip_dep       = dependency('libzip', required: true)
-glaze_dep     = dependency('glaze', method: 'cmake', modules: ['glaze::glaze'])
+glaze_dep     = dependency('glaze', version: '>= 9.0', method: 'cmake', modules: ['glaze::glaze'])
 glib_dep      = dependency('glib-2.0', version: '>= 2.74')
 manifold_dep  = dependency('manifold', version: '>= 0.0.1', fallback: ['manifold', 'manifold_dep'])
 

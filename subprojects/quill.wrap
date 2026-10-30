@@ -1,0 +1,10 @@
+[wrap-file]
+directory = quill-12.2.2
+source_url = https://github.com/odygrd/quill/archive/refs/tags/v12.2.2.tar.gz
+source_filename = quill-12.2.2.tar.gz
+source_hash = 0daa25874ad15fa17a5cd8964ddb184ee120bed6090575c686217be152a5d7cd
+source_fallback_url = https://wrapdb.mesonbuild.com/v2/quill_12.2.2-1/get_source/quill-12.2.2.tar.gz
+wrapdb_version = 12.2.2-1
+
+[provide]
+dependency_names = quill

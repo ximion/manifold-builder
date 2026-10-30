@@ -1,0 +1,8 @@
+[wrap-git]
+url = https://github.com/stephenberry/glaze.git
+revision = v9.1.0
+depth = 1
+method = cmake
+
+[provide]
+glaze = glaze_glaze_dep

@@ -1,0 +1,8 @@
+[wrap-git]
+url = https://github.com/ximion/appstream.git
+revision = b541837f430e750f656845712c2abae37f12924d
+depth = 1
+
+[provide]
+appstream = appstream_dep
+appstream-compose = appstream_compose_dep
