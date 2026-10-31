@@ -47,4 +47,5 @@ catch2_dep    = dependency('catch2-with-main', version : '>= 3.0')
 # Subdirs
 #
 subdir('src')
+subdir('data')
 subdir('tests')

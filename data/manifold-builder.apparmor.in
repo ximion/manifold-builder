@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# manifold-builder runs the commands of a build as root of a user namespace.
+# Hosts restricting those only permit it to programs whose profile grants the
+# "userns" permission, and their profile for bwrap takes all capabilities away
+# from what it runs, unless bwrap stays in this profile.
+#
+# /!\ Builds run arbitrary code with these capabilities, so the userns
+# restriction is effectively lifted for everyone who can run manifold-builder!
+
+abi <abi/4.0>,
+
+include <tunables/global>
+
+profile manifold-builder @MFB_BINDIR@/manifold-builder flags=(attach_disconnected,mediate_deleted) {
+  allow all,
+  userns,
+
+  /usr/bin/unshare ix,
+  /usr/bin/bwrap ix,
+
+  # Site-specific additions and overrides.
+  include if exists <local/manifold-builder>
+}

@@ -1,0 +1,22 @@
+#
+# Features
+#
+option('apparmor',
+       type : 'feature',
+       value : 'disabled',
+       description : 'Install an AppArmor profile for hosts restricting user namespaces (lifts restriction for users who can run manifold-builder)'
+)
+option('apparmor_dir',
+       type : 'string',
+       value : '/etc/apparmor.d',
+       description : 'Directory to install AppArmor profiles to'
+)
+
+#
+# For development
+#
+option('maintainer',
+       type : 'boolean',
+       value : false,
+       description : 'Enable maintainer mode (use strict compiler flags, e.g. -Werror)'
+)
