@@ -10,7 +10,6 @@
 #include "checksum.hpp"
 #include "logging.hpp"
 #include "process.hpp"
-#include "scopeguard.hpp"
 #include "utils.hpp"
 
 #include <glaze/glaze.hpp>
@@ -92,23 +91,6 @@ public:
         add(std::string(name), zsource, false);
     }
 
-    std::string read(std::string_view name)
-    {
-        std::string entry(name);
-        zip_stat_t stat;
-        if (zip_stat(m_zip, entry.c_str(), 0, &stat) != 0 || !(stat.valid & ZIP_STAT_SIZE))
-            fail("{}: No {} in the bundle", m_path.filename().string(), entry);
-        zip_file_t *file = zip_fopen(m_zip, entry.c_str(), 0);
-        if (file == nullptr)
-            fail_with("Cannot read " + entry);
-        std::string data(stat.size, '\0');
-        auto got = zip_fread(file, data.data(), data.size());
-        zip_fclose(file);
-        if (got < 0 || static_cast<zip_uint64_t>(got) != stat.size)
-            fail("Cannot read {} from {}", entry, m_path.string());
-        return data;
-    }
-
     void close()
     {
         if (zip_close(m_zip) != 0)
@@ -142,40 +124,6 @@ std::string index_to_json(BundleIndex index)
     return *json + "\n";
 }
 
-/**
- * Sign the index with `ssh-keygen -Y sign` and return the SSHSig signature.
- *
- * ssh-keygen only signs files, so we briefly write the index next to the
- * bundle.
- */
-std::string sign_index(const std::string &index_json, const fs::path &key, const fs::path &bundle_path)
-{
-    auto ssh_keygen = require_tool("ssh-keygen");
-    auto index_file = bundle_path.string() + "." + std::string(INDEX_NAME);
-    auto signature_file = index_file + ".sig";
-    // not quiet, so a passphrase prompt reaches the terminal
-    std::vector<std::string> sign = {
-        ssh_keygen.string(),
-        "-Y",
-        "sign",
-        "-f",
-        fs::absolute(key).string(),
-        "-n",
-        std::string(SIGN_NAMESPACE),
-        index_file,
-    };
-    ScopeGuard remove_files([&] {
-        std::error_code error;
-        fs::remove(index_file, error);
-        fs::remove(signature_file, error);
-    });
-
-    LOG_INFO(logBundle, "Signing with {}...", key.string());
-    write_file(index_file, index_json);
-    run({.argv = sign});
-    return read_file(signature_file);
-}
-
 } // namespace
 
 bool is_indexed(std::string_view name)
@@ -183,10 +131,7 @@ bool is_indexed(std::string_view name)
     return name.ends_with(".manifold.json") || name.starts_with(MF_BUNDLE_CATALOG_DIR "/");
 }
 
-void write_bundle(
-    const fs::path &bundle_path,
-    const std::vector<BundleEntry> &entries,
-    const std::optional<fs::path> &sign_key)
+void write_bundle(const fs::path &bundle_path, const std::vector<BundleEntry> &entries)
 {
     LOG_INFO(logBundle, "Writing {}...", bundle_path.filename().string());
 
@@ -207,30 +152,37 @@ void write_bundle(
 
     auto index_json = index_to_json(std::move(index));
     archive.add_buffer(INDEX_NAME, index_json);
-    std::string signature;
-    if (sign_key) {
-        try {
-            signature = sign_index(index_json, *sign_key, bundle_path);
-        } catch (const BuildError &error) {
-            // the build is not lost, the bundle can be signed on its own
-            archive.close();
-            fail(
-                "{}\n{} was written unsigned, sign it with: manifold-builder sign {} {}",
-                error.what(),
-                bundle_path.string(),
-                shell_quote(sign_key->string()),
-                shell_quote(bundle_path.string()));
-        }
-        archive.add_buffer(SIGNATURE_NAME, signature);
-    }
     archive.close();
 }
 
-void check_sign_key(const fs::path &key)
+MfSigner *select_signer(const char *key)
 {
-    require_tool("ssh-keygen");
-    if (!fs::is_regular_file(key))
-        fail("Signing key {} does not exist", key.string());
+    g_autoptr(GError) error = nullptr;
+    g_autoptr(MfSigner) signer = key ? mf_signer_new_for_key(key, &error) : mf_signer_new_default(&error);
+
+    // only a key that was asked for has to exist
+    if (signer == nullptr && key == nullptr) {
+        LOG_INFO(logBundle, "{}, the bundle will not be signed", error->message);
+        return nullptr;
+    }
+    if (signer == nullptr || !mf_signer_check(signer, &error))
+        fail("{}", error->message);
+
+    return g_steal_pointer(&signer);
+}
+
+void sign_bundle(const fs::path &bundle_path, MfSigner *signer)
+{
+    g_autoptr(GError) error = nullptr;
+
+    LOG_INFO(logBundle, "Signing with {}...", mf_signer_get_name(signer));
+    // the build is not lost, the bundle can be signed on its own
+    if (!mf_bundle_sign_file(bundle_path.c_str(), signer, &error))
+        fail(
+            "{}\n{} was written unsigned, sign it with: manifold bundle sign [--key=KEY] {}",
+            error->message,
+            bundle_path.string(),
+            shell_quote(bundle_path.string()));
 }
 
 void verify_bundle(const fs::path &bundle_path)
@@ -252,24 +204,6 @@ void verify_bundle(const fs::path &bundle_path)
         images->len,
         images->len == 1 ? "" : "s",
         mf_bundle_is_signed(bundle) ? "signed" : "unsigned");
-}
-
-void sign_bundle(const fs::path &bundle_path, const fs::path &sign_key)
-{
-    // never sign what Manifold refuses to open, e.g. a bundle that changed
-    // after its index was written
-    {
-        g_autoptr(GError) error = nullptr;
-        g_autoptr(MfBundle) bundle = mf_bundle_new_from_path(bundle_path.c_str(), &error);
-        if (bundle == nullptr)
-            fail("{}, refusing to sign", error->message);
-    }
-
-    Archive archive(bundle_path, 0);
-    auto index_json = archive.read(INDEX_NAME);
-    auto signature = sign_index(index_json, sign_key, bundle_path);
-    archive.add_buffer(SIGNATURE_NAME, signature);
-    archive.close();
 }
 
 } // namespace mfb

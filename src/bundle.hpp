@@ -9,7 +9,7 @@
 #include "utils.hpp"
 
 #include <cstdint>
-#include <optional>
+#include <manifold.h>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -18,9 +18,6 @@ namespace mfb
 {
 
 constexpr std::string_view INDEX_NAME = "index.json";
-constexpr std::string_view SIGNATURE_NAME = "index.json.sig";
-/// The SSHSig namespace the index is signed under.
-constexpr std::string_view SIGN_NAMESPACE = "manifold-bundle";
 
 struct BundleEntry {
     std::string name; ///< Name inside the archive
@@ -47,20 +44,26 @@ struct BundleIndex {
 bool is_indexed(std::string_view name);
 
 /**
- * Write the bundle with its index.json, and sign it with `sign_key` if given.
- *
- * The key is anything `ssh-keygen -Y sign -f` accepts: a private key, or a
- * public key whose private half is in ssh-agent.
+ * Write the bundle with its index.json.
  */
-void write_bundle(
-    const fs::path &bundle_path,
-    const std::vector<BundleEntry> &entries,
-    const std::optional<fs::path> &sign_key = std::nullopt);
+void write_bundle(const fs::path &bundle_path, const std::vector<BundleEntry> &entries);
 
 /**
- * Check that we can sign with `key`, before there is anything to sign.
+ * Find the key to sign with, and check that we can use it before there is
+ * anything to sign.
+ *
+ * `key` is anything `manifold bundle sign --key` accepts. If it is null, we
+ * use the default key, or return null if there is none. Fails the build if we
+ * can not sign with the key. The caller owns the result.
  */
-void check_sign_key(const fs::path &key);
+MfSigner *select_signer(const char *key);
+
+/**
+ * Sign a bundle in place.
+ *
+ * Fails the build if that is not possible, and leaves the bundle as it was.
+ */
+void sign_bundle(const fs::path &bundle_path, MfSigner *signer);
 
 /**
  * Read the bundle like Manifold does when installing it, and verify every
@@ -69,13 +72,5 @@ void check_sign_key(const fs::path &key);
  * Fails the build if Manifold would refuse the bundle.
  */
 void verify_bundle(const fs::path &bundle_path);
-
-/**
- * Sign an existing bundle in place, replacing any signature it has.
- *
- * Fails if Manifold would refuse the bundle, e.g. because a listed file does
- * not match index.json or an indexed file is missing.
- */
-void sign_bundle(const fs::path &bundle_path, const fs::path &sign_key);
 
 } // namespace mfb

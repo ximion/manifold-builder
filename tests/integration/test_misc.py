@@ -4,6 +4,10 @@
 #
 # Tests for the command line that build nothing.
 
+from pathlib import Path
+
+SAMPLES_DIR = Path(__file__).parent.parent / 'samples'
+
 
 def test_version(builder):
     result = builder.run('--version')
@@ -14,6 +18,14 @@ def test_version(builder):
 def test_usage(builder):
     assert builder.run().returncode == 2
     assert builder.run('build').returncode == 2
+    assert builder.run('build', '--sign=key', '--no-sign', 'recipe.yaml').returncode == 2
+    assert builder.run('sign', 'key', 'bundle.manifold').returncode == 2
+
+
+def test_missing_signing_key(builder, tmp_path):
+    recipe = SAMPLES_DIR / 'net.debian.core13.yaml'
+    output = builder.build_fails(recipe, tmp_path / 'core.manifold', '--sign=no-such-key')
+    assert 'no-such-key' in output
 
 
 def test_invalid_recipe(builder, tmp_path):

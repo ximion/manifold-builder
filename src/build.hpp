@@ -7,6 +7,7 @@
 #pragma once
 
 #include <chrono>
+#include <manifold.h>
 #include <map>
 #include <memory>
 #include <optional>
@@ -29,7 +30,7 @@ struct MetaInfo;
 
 struct BuildOptions {
     std::optional<fs::path> output;   ///< The bundle filename to write
-    std::optional<fs::path> sign_key; ///< SSH key to sign the bundle's index with
+    MfSigner *signer = nullptr;       ///< Key to sign the bundle with, it stays unsigned without one
     std::optional<fs::path> work_dir; ///< Scratch directory. Defaults to _build-<recipe name> beside the recipe
     bool keep_work = false;
     std::optional<fs::path> cache_dir; ///< Where downloads, git mirrors and packages are kept for later builds

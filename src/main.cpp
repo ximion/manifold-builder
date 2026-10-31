@@ -13,6 +13,7 @@
 #include "utils.hpp"
 
 #include <glib.h>
+#include <manifold.h>
 #include <print>
 
 int main(int argc, char **argv)
@@ -21,6 +22,7 @@ int main(int argc, char **argv)
     gchar *work_dir = nullptr;
     gchar *runtimes_dir = nullptr;
     gchar *sign_key = nullptr;
+    gboolean no_sign = FALSE;
     gboolean keep_work = FALSE;
     gboolean no_cache = FALSE;
     gint jobs = 0;
@@ -68,8 +70,14 @@ int main(int argc, char **argv)
         {"sign", 0, 0,
          G_OPTION_ARG_FILENAME,
          &sign_key,
-         "Sign the bundle's index.json with this SSH key (ssh-keygen -Y sign)",
-         "KEYFILE"
+         "Sign the bundle with this key: its name, the path of a key file, or the fingerprint of a key in ssh-agent "
+         "[$MANIFOLD_SIGNING_KEY, or else the key named default]",
+         "KEY"
+        },
+
+        {"no-sign", 0, 0, G_OPTION_ARG_NONE,
+         &no_sign,
+         "Do not sign the bundle, even if there is a key", nullptr
         },
 
         {"verbose", 'v', 0, G_OPTION_ARG_NONE,
@@ -88,12 +96,11 @@ int main(int argc, char **argv)
     };
     // clang-format on
 
-    GOptionContext *context = g_option_context_new("build RECIPE | sign KEYFILE BUNDLE | check BUNDLE");
+    GOptionContext *context = g_option_context_new("build RECIPE | check BUNDLE");
     g_option_context_set_summary(
         context,
         "Builds the images a recipe describes and bundles them in a .manifold file,\n"
-        "signs an existing bundle with an SSH key, or checks a bundle the way\n"
-        "Manifold does when installing it.");
+        "or checks a bundle the way Manifold does when installing it.");
     g_option_context_add_main_entries(context, entries, nullptr);
 
     GError *error = nullptr;
@@ -108,14 +115,18 @@ int main(int argc, char **argv)
         return 2;
     }
 
+    if (sign_key && no_sign) {
+        std::println(stderr, "manifold-builder: --sign and --no-sign can not be used together");
+        return 2;
+    }
+
     if (show_version) {
         std::println("manifold-builder {}", MFB_VERSION);
         return 0;
     }
     auto command = positional ? std::string_view(positional[0]) : std::string_view();
     auto arguments = positional ? g_strv_length(positional) - 1 : 0;
-    if (!((command == "build" && arguments == 1) || (command == "sign" && arguments == 2)
-          || (command == "check" && arguments == 1))) {
+    if (!((command == "build" && arguments == 1) || (command == "check" && arguments == 1))) {
         gchar *help = g_option_context_get_help(context, TRUE, nullptr);
         std::print(stderr, "{}", help);
         g_free(help);
@@ -129,8 +140,6 @@ int main(int argc, char **argv)
         options.work_dir = work_dir;
     if (runtimes_dir)
         options.runtimes_dir = runtimes_dir;
-    if (sign_key)
-        options.sign_key = sign_key;
     options.keep_work = keep_work;
     if (!no_cache)
         options.cache_dir = mfb::fs::path(g_get_user_cache_dir()) / "manifold-builder";
@@ -140,13 +149,6 @@ int main(int argc, char **argv)
     mfb::log::init(verbose);
     quill::Logger *logRoot = mfb::log::root();
     try {
-        if (command == "sign") {
-            mfb::fs::path bundle_path = positional[2];
-            mfb::sign_bundle(bundle_path, positional[1]);
-            LOG_INFO(logRoot, "signed: {}", bundle_path.string());
-            mfb::log::flush();
-            return 0;
-        }
         if (command == "check") {
             mfb::verify_bundle(positional[1]);
             mfb::log::flush();
@@ -155,6 +157,9 @@ int main(int argc, char **argv)
 
         mfb::fs::path recipe_path = positional[1];
         auto recipe = mfb::load_recipe(recipe_path);
+
+        g_autoptr(MfSigner) signer = no_sign ? nullptr : mfb::select_signer(sign_key);
+        options.signer = signer;
 
         mfb::fs::path bundle;
         if (recipe.is_core())

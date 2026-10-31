@@ -174,8 +174,6 @@ void Build::setup()
                 package);
     }
     check_source_tools(m_parts);
-    if (m_options.sign_key)
-        check_sign_key(*m_options.sign_key);
     if (m_recipe.metainfo_file) {
         auto file = m_recipe_dir / *m_recipe.metainfo_file;
         check_metainfo(file, file.string());
@@ -770,7 +768,9 @@ fs::path Build::make_images()
             entries.push_back(
                 {(MF_BUNDLE_CATALOG_DIR / file).string(), catalog_dir / file, file.extension() != ".xml"});
     }
-    write_bundle(m_output, entries, m_options.sign_key);
+    write_bundle(m_output, entries);
+    if (m_options.signer)
+        sign_bundle(m_output, m_options.signer);
     verify_bundle(m_output);
     return m_output;
 }
