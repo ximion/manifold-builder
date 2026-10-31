@@ -252,23 +252,17 @@ TEST_CASE("MetaInfo of an image goes into the catalog of the bundle", "[metainfo
     CHECK(info.metadata_license == "CC0-1.0");
     CHECK(info.homepage == "https://example.org/core");
 
-    // the catalog keeps the translations and the icon, and names the image to install
-    AppStreamCatalog catalog(dir / "catalog");
-    catalog.add_tree(tree, "/usr", "net.example.core", manifold_bundle_id("x86_64", "net.example.core", "1.0"));
-    auto catalog_file = catalog.write();
-    CHECK(catalog_file == dir / "catalog/manifold-local.xml");
-    auto xml = read_file(catalog_file);
-    CHECK_THAT(xml, ContainsSubstring("<components "));
-    CHECK_THAT(xml, ContainsSubstring("origin=\"manifold-local\""));
+    // the catalog keeps the translations and the icon
+    auto icons_dir = dir / "catalog/icons";
+    auto media_dir = dir / "catalog/media";
+    auto xml = compose_catalog(tree, "/usr", "net.example.core", icons_dir, media_dir);
+    CHECK_THAT(xml, ContainsSubstring("<components"));
     CHECK_THAT(xml, ContainsSubstring("Beispielkern"));
-    CHECK_THAT(xml, ContainsSubstring("<bundle type=\"manifold\">x86_64/net.example.core/1.0</bundle>"));
     CHECK_THAT(xml, ContainsSubstring("<icon type=\"cached\""));
-    CHECK(fs::is_regular_file(dir / "catalog/icons/64x64/net.example.core.jxl"));
+    CHECK(fs::is_regular_file(icons_dir / "64x64/net.example.core.jxl"));
     CHECK_THAT(xml, !ContainsSubstring("org.example.tool"));
     CHECK_THAT(read_file(file), !ContainsSubstring("<bundle"));
 
     // the tree has to describe the image it belongs to
-    CHECK_THROWS_AS(
-        catalog.add_tree(tree, "/usr", "net.example.other", manifold_bundle_id("x86_64", "net.example.other", "1.0")),
-        BuildError);
+    CHECK_THROWS_AS(compose_catalog(tree, "/usr", "net.example.other", icons_dir, media_dir), BuildError);
 }

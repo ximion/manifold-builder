@@ -51,6 +51,7 @@ struct Output {
     std::string stem; ///< Name stem of its files in the work directory (runtime, sdk, kit, kit-sdk, app or app-sdk)
     fs::path tree;    ///< Tree the image is made from
     Manifest manifest;
+    std::string catalog = {}; ///< AppStream catalog XML with its component, once the tree is complete
 };
 
 /**
@@ -226,6 +227,7 @@ protected:
 
 private:
     void setup();
+
     /**
      * Create, lock and clear the work directory.
      *
@@ -233,17 +235,21 @@ private:
      * use any other directory that is not empty.
      */
     void prepare_work_dir();
+
     std::vector<std::pair<std::string, std::string>> part_environment(
         const BuildSettings &settings,
         const InstallTarget &target) const;
+
     /**
      * Get the directory a part's sources are fetched into.
      */
     fs::path part_sources(const Part &part) const;
+
     /**
      * Get a file we keep about a part next to its stage, e.g. its build script.
      */
     fs::path part_file(const Part &part, std::string_view suffix) const;
+
     /**
      * Get the sandbox of a part's build over `root`, without anything to
      * install into.
@@ -255,6 +261,7 @@ private:
      * of the bundle, and pack the trees.
      */
     void pack_outputs();
+
     /**
      * Add the commands that put an output's MetaInfo file at tree_metainfo().
      *
@@ -263,6 +270,7 @@ private:
      * Returns the file we take, or an empty path if there is none.
      */
     fs::path place_metainfo(Script &s, const Output &output) const;
+
     /**
      * Generate the MetaInfo file of an output that ships none, and return its path.
      *
@@ -271,25 +279,40 @@ private:
      * to their MetaInfo files.
      */
     fs::path generate_metainfo_file(const Output &output, const std::map<std::string, fs::path> &placed) const;
+
     /**
      * Generate the MetaInfo data for an SDK from the MetaInfo of the runtime
      * or app `runtime_id`, which it extends.
      */
     MetaInfo sdk_metainfo(const Manifest &manifest, const std::string &runtime_id, const MetaInfo &runtime) const;
+
     /**
      * Get the path of an output's MetaInfo file in its tree,
      * "<prefix>/share/metainfo/<component>.metainfo.xml".
      */
     fs::path tree_metainfo(const Output &output) const;
+
     /**
      * Install an output's manifest into its tree. App images keep it below /app.
      */
     void install_manifest(Script &s, const Output &output) const;
+
     /**
      * Normalize an output's tree and pack it into an erofs image.
      * Everything in the image is owned by root, without setuid or setgid bits.
      */
     void pack(Script &s, const Output &output) const;
+
+    /**
+     * Get the directory that holds the cached icons of all images.
+     */
+    fs::path catalog_icons_dir() const;
+
+    /**
+     * Get the directory that holds the screenshots and videos of all images.
+     */
+    fs::path catalog_media_dir() const;
+
     fs::path make_images();
     void cleanup_work_dir();
 };

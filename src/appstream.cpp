@@ -13,7 +13,6 @@
 #include <appstream-compose.h>
 #include <appstream.h>
 #include <format>
-#include <manifold.h>
 
 namespace mfb
 {
@@ -130,27 +129,16 @@ MetaInfo parse_metainfo(const std::string &xml)
     };
 }
 
-AppStreamCatalog::AppStreamCatalog(fs::path dir)
-    : m_dir(std::move(dir)),
-      m_metadata(as_metadata_new())
-{
-    fs::create_directories(m_dir);
-    as_metadata_set_locale(m_metadata, "ALL");
-    as_metadata_set_format_style(m_metadata, AS_FORMAT_STYLE_CATALOG);
-    as_metadata_set_origin(m_metadata, MF_BUNDLE_CATALOG_ORIGIN);
-}
-
-AppStreamCatalog::~AppStreamCatalog()
-{
-    g_object_unref(m_metadata);
-}
-
-void AppStreamCatalog::add_tree(
+std::string compose_catalog(
     const fs::path &tree,
     const std::string &prefix,
     const std::string &component_id,
-    const std::string &bundle_id)
+    const fs::path &icons_dir,
+    const fs::path &media_dir)
 {
+    fs::create_directories(icons_dir);
+    fs::create_directories(media_dir);
+
     // we cache every icon size, a repository can still serve them remotely
     g_autoptr(AscIconPolicy) icon_policy = asc_icon_policy_new();
     AscIconPolicyIter iter;
@@ -166,13 +154,13 @@ void AppStreamCatalog::add_tree(
     g_autoptr(AscCompose) compose = asc_compose_new();
     asc_compose_set_prefix(compose, prefix.c_str());
     asc_compose_add_allowed_cid(compose, component_id.c_str());
-    asc_compose_set_origin(compose, MF_BUNDLE_CATALOG_ORIGIN);
+    asc_compose_set_origin(compose, "manifold-local");
     asc_compose_set_icon_policy(compose, icon_policy);
 
     // Manifold only accepts JPEG XL icons, so we do not rely on the default
     asc_compose_set_image_format(compose, ASC_IMAGE_FORMAT_JXL);
-    asc_compose_set_icons_result_dir(compose, (m_dir / "icons").c_str());
-    asc_compose_set_media_result_dir(compose, (m_dir / "media").c_str());
+    asc_compose_set_icons_result_dir(compose, icons_dir.c_str());
+    asc_compose_set_media_result_dir(compose, media_dir.c_str());
     // NOTE: Compose refuses to store screenshots without a media base URL. With
     // relative URLs it never writes the URL out, and a repository sets its own.
     asc_compose_set_media_baseurl(compose, "https://manifold.invalid/media");
@@ -205,38 +193,16 @@ void AppStreamCatalog::add_tree(
         if (cpt == nullptr)
             continue;
 
-        // NOTE: Compose drops the bundle of a unit as of AppStream 1.2.2, so we can
-        // not use asc_unit_set_bundle_id() and have to add the bundle on our own.
-        // MetaInfo may ship bundles too, but only ours can name the image.
-        g_ptr_array_set_size(as_component_get_bundles(cpt), 0);
-        g_autoptr(AsBundle) bundle = as_bundle_new();
-        as_bundle_set_kind(bundle, AS_BUNDLE_KIND_MANIFOLD);
-        as_bundle_set_id(bundle, bundle_id.c_str());
-        as_component_add_bundle(cpt, bundle);
-
-        as_metadata_add_component(m_metadata, cpt);
-        return;
+        g_autoptr(AsMetadata) metadata = as_metadata_new();
+        as_metadata_set_locale(metadata, "ALL");
+        as_metadata_set_format_style(metadata, AS_FORMAT_STYLE_CATALOG);
+        as_metadata_add_component(metadata, cpt);
+        g_autofree gchar *xml = as_metadata_components_to_catalog(metadata, AS_FORMAT_KIND_XML, &error);
+        if (xml == nullptr)
+            fail("Cannot write the AppStream catalog: {}", error ? error->message : "unknown error");
+        return xml;
     }
     fail("The image has no usable AppStream metadata for {} (expected below {}/share/metainfo)", component_id, prefix);
-}
-
-fs::path AppStreamCatalog::write() const
-{
-    g_autoptr(GError) error = nullptr;
-    g_autofree gchar *xml = as_metadata_components_to_catalog(m_metadata, AS_FORMAT_KIND_XML, &error);
-    if (xml == nullptr)
-        fail("Cannot write the AppStream catalog: {}", error ? error->message : "unknown error");
-    auto file = m_dir / (std::string(MF_BUNDLE_CATALOG_ORIGIN) + ".xml");
-    write_file(file, xml);
-    return file;
-}
-
-std::string manifold_bundle_id(
-    const std::string &architecture,
-    const std::string &component,
-    const std::string &version)
-{
-    return std::format("{}/{}/{}", architecture, component, version);
 }
 
 std::vector<MetaInfoIssue> validate_metainfo(const std::string &xml)

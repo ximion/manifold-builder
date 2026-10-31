@@ -33,7 +33,7 @@ mfb_lib_sources = files(
 
 mfbuilder_lib = static_library('mfbuilder',
     mfb_lib_sources,
-    dependencies : [quill_dep, blake3_dep, zip_dep, glaze_dep, appstream_dep, ascompose_dep, glib_dep, manifold_dep],
+    dependencies : [quill_dep, blake3_dep, glaze_dep, appstream_dep, ascompose_dep, glib_dep, manifold_dep],
 )
 
 mfbuilder_dep = declare_dependency(

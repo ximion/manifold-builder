@@ -60,46 +60,17 @@ std::vector<MetaInfoIssue> validate_metainfo(const std::string &xml);
 MetaInfo parse_metainfo(const std::string &xml);
 
 /**
- * Get the ID of the Manifold bundle that names the image to install,
- * as "<architecture>/<component>/<version>".
+ * Run appstream-compose on an image tree with the given prefix, and return
+ * catalog XML with the component `component_id`. Its icons and screenshots go
+ * to `icons_dir` and `media_dir`. All other components of the tree that don't
+ * match the component ID are ignored. Fails the build if the tree has no such
+ * component.
  */
-std::string manifold_bundle_id(
-    const std::string &architecture,
-    const std::string &component,
-    const std::string &version);
-
-/**
- * AppStream catalog of the images of a bundle.
- */
-class AppStreamCatalog
-{
-public:
-    explicit AppStreamCatalog(fs::path dir);
-    ~AppStreamCatalog();
-    AppStreamCatalog(const AppStreamCatalog &) = delete;
-    AppStreamCatalog &operator=(const AppStreamCatalog &) = delete;
-
-    /**
-     * Run appstream-compose on an image tree with the given prefix,
-     * add the component `component_id` with its icons and screenshots,
-     * and name its image with the Manifold bundle `bundle_id`. All other
-     * components of the tree that don't match the component ID are ignored.
-     * Fails the build if the tree has no such component.
-     */
-    void add_tree(
-        const fs::path &tree,
-        const std::string &prefix,
-        const std::string &component_id,
-        const std::string &bundle_id);
-
-    /**
-     * Write the catalog XML and return its path.
-     */
-    fs::path write() const;
-
-private:
-    fs::path m_dir;
-    _AsMetadata *m_metadata;
-};
+std::string compose_catalog(
+    const fs::path &tree,
+    const std::string &prefix,
+    const std::string &component_id,
+    const fs::path &icons_dir,
+    const fs::path &media_dir);
 
 } // namespace mfb

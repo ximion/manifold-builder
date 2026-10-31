@@ -65,7 +65,6 @@ class Bundle:
         ref = f'{manifest["architecture"]}/{manifest["component"]}/{manifest["version"]}'
         with zipfile.ZipFile(self.path) as archive:
             catalog = ElementTree.fromstring(archive.read('catalog/manifold-local.xml'))
-        assert catalog.get('origin') == 'manifold-local'
         for component in catalog.iter('component'):
             if component.findtext("bundle[@type='manifold']") == ref:
                 return ElementTree.tostring(component, encoding='unicode')

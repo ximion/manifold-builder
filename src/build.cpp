@@ -554,17 +554,18 @@ void Build::pack_outputs()
     }
     m_sandbox.run(place);
 
-    // only the catalog in the bundle names the images to install
-    AppStreamCatalog catalog(m_work / MF_BUNDLE_CATALOG_DIR);
     Script s;
-    for (const auto &output : m_outputs) {
+    for (auto &output : m_outputs) {
         const auto &manifest = output.manifest;
-        auto bundle_id = manifold_bundle_id(manifest.architecture, manifest.component, manifest.version);
-        catalog.add_tree(output.tree, manifest.kind == "app" ? "/app" : "/usr", manifest.component, bundle_id);
+        output.catalog = compose_catalog(
+            output.tree,
+            manifest.kind == "app" ? "/app" : "/usr",
+            manifest.component,
+            catalog_icons_dir(),
+            catalog_media_dir());
         install_manifest(s, output);
         pack(s, output);
     }
-    catalog.write();
     m_sandbox.run(s);
 }
 
@@ -703,6 +704,16 @@ void Build::pack(Script &s, const Output &output) const
         excludes));
 }
 
+fs::path Build::catalog_icons_dir() const
+{
+    return m_work / "catalog" / "icons";
+}
+
+fs::path Build::catalog_media_dir() const
+{
+    return m_work / "catalog" / "media";
+}
+
 const Output &Build::output(std::string_view stem) const
 {
     for (const auto &candidate : m_outputs) {
@@ -715,7 +726,7 @@ const Output &Build::output(std::string_view stem) const
 fs::path Build::make_images()
 {
     log::section_box("Images");
-    std::vector<BundleEntry> entries;
+    std::vector<BundleImage> images;
     for (const auto &output : m_outputs) {
         auto raw = m_work / image_file_name(output.manifest, ".raw");
         auto erofs = m_work / image_file_name(output.manifest, ".erofs");
@@ -745,8 +756,6 @@ fs::path Build::make_images()
                     .uuid = uuid,
                 },
         };
-        auto json = m_work / image_file_name(output.manifest, ".manifold.json");
-        write_manifest(record, json);
         LOG_INFO(
             logBuild,
             "{}: {:.1f} MiB, {} packages, identity {}",
@@ -755,22 +764,10 @@ fs::path Build::make_images()
             m_system->packages_of(record).size(),
             record.identity);
 
-        entries.push_back({raw.filename(), raw, true});
-        entries.push_back({json.filename(), json, false});
+        images.push_back({raw, to_json(record), output.catalog});
     }
 
-    // the catalog of all images, in a stable order; icons and media are compressed already
-    auto catalog_dir = m_work / MF_BUNDLE_CATALOG_DIR;
-    auto catalog_files = list_tree(catalog_dir);
-    std::ranges::sort(catalog_files);
-    for (const auto &file : catalog_files) {
-        if (fs::is_regular_file(catalog_dir / file))
-            entries.push_back(
-                {(MF_BUNDLE_CATALOG_DIR / file).string(), catalog_dir / file, file.extension() != ".xml"});
-    }
-    write_bundle(m_output, entries);
-    if (m_options.signer)
-        sign_bundle(m_output, m_options.signer);
+    write_bundle(m_output, images, catalog_icons_dir(), catalog_media_dir(), m_options.signer);
     verify_bundle(m_output);
     return m_output;
 }

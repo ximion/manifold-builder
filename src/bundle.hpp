@@ -8,45 +8,34 @@
 
 #include "utils.hpp"
 
-#include <cstdint>
 #include <manifold.h>
 #include <string>
-#include <string_view>
 #include <vector>
 
 namespace mfb
 {
 
-constexpr std::string_view INDEX_NAME = "index.json";
-
-struct BundleEntry {
-    std::string name; ///< Name inside the archive
-    fs::path source;
-    bool uncompressed = false; ///< Store without compression, for images that are compressed already
-};
-
-struct IndexEntry {
-    std::string name;
-    uint64_t size = 0;
-    std::string blake3;
-    std::string sha256;
-};
-
-struct BundleIndex {
-    int format = 1;
-    std::vector<IndexEntry> files;
+/**
+ * An image, with what a bundle has to say about it.
+ */
+struct BundleImage {
+    fs::path file;
+    std::string manifest; ///< Its manifest, as JSON
+    std::string catalog;  ///< AppStream catalog XML with its component
 };
 
 /**
- * Check if a file of this name belongs in index.json, which lists the
- * manifests and the files of the catalog.
+ * Write the bundle with the cached icons and the media of its components,
+ * and sign it if there is a `signer`.
+ *
+ * If signing fails, this fails the build, but the bundle is written unsigned.
  */
-bool is_indexed(std::string_view name);
-
-/**
- * Write the bundle with its index.json.
- */
-void write_bundle(const fs::path &bundle_path, const std::vector<BundleEntry> &entries);
+void write_bundle(
+    const fs::path &bundle_path,
+    const std::vector<BundleImage> &images,
+    const fs::path &icons_dir,
+    const fs::path &media_dir,
+    MfSigner *signer);
 
 /**
  * Find the key to sign with, and check that we can use it before there is
@@ -57,13 +46,6 @@ void write_bundle(const fs::path &bundle_path, const std::vector<BundleEntry> &e
  * can not sign with the key. The caller owns the result.
  */
 MfSigner *select_signer(const char *key);
-
-/**
- * Sign a bundle in place.
- *
- * Fails the build if that is not possible, and leaves the bundle as it was.
- */
-void sign_bundle(const fs::path &bundle_path, MfSigner *signer);
 
 /**
  * Read the bundle like Manifold does when installing it, and verify every
